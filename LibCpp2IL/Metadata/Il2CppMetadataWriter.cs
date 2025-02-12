@@ -70,6 +70,11 @@ public static class Il2CppMetadataWriter
         writer.WriteMetadataClassArray<Il2CppParameterDefaultValue>(m.metadataHeader.parameterDefaultValuesOffset, m.parameterDefaultValues);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
 
+        LibLogger.Verbose("\tWriting default field and parameter values...");
+        start = DateTime.Now;
+        writer.WriteClassArrayAtRawAddr<byte>(m.metadataHeader.fieldAndParameterDefaultValueDataOffset, GetFieldAndParameterDefaultValueData(m));
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
         LibLogger.Verbose("\tWriting property definitions...");
         start = DateTime.Now;
         writer.WriteMetadataClassArray<Il2CppPropertyDefinition>(m.metadataHeader.propertiesOffset, m.propertyDefs);
@@ -181,6 +186,14 @@ public static class Il2CppMetadataWriter
             var addr = m.metadataHeader.stringOffset + i;
             writer.WriteStringWithNullTerminatorAtRawAddress(addr, str);
         }
+    }
+
+    private static byte[] GetFieldAndParameterDefaultValueData(Il2CppMetadata m)
+    {
+        var offset = m.metadataHeader.fieldAndParameterDefaultValueDataOffset;
+        var count = m.metadataHeader.fieldAndParameterDefaultValueDataCount;
+
+        return m.ReadByteArrayAtRawAddress(offset, count);
     }
 }
 
