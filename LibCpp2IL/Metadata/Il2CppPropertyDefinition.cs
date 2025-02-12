@@ -64,4 +64,18 @@ public class Il2CppPropertyDefinition : ReadableClass, IIl2CppTokenProvider
 
         token = reader.ReadUInt32();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(nameIndex);
+
+        writer.Write(get);
+        writer.Write(set);
+        writer.Write(attrs);
+
+        if (IsAtMost(24f))
+            writer.Write(customAttributeIndex);
+
+        writer.Write(token);
+    }
 }

@@ -1,4 +1,4 @@
-﻿using LibCpp2IL.Reflection;
+using LibCpp2IL.Reflection;
 
 namespace LibCpp2IL.Metadata;
 
@@ -18,5 +18,11 @@ public class Il2CppInterfaceOffset : ReadableClass
     {
         typeIndex = reader.ReadInt32();
         offset = reader.ReadInt32();
+    }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(typeIndex);
+        writer.Write(offset);
     }
 }

@@ -10,4 +10,10 @@ public class Il2CppMetadataUsagePair : ReadableClass
         destinationIndex = reader.ReadUInt32();
         encodedSourceIndex = reader.ReadUInt32();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(destinationIndex);
+        writer.Write(encodedSourceIndex);
+    }
 }

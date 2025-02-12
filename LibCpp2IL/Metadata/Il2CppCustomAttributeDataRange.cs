@@ -1,4 +1,4 @@
-﻿namespace LibCpp2IL.Metadata;
+namespace LibCpp2IL.Metadata;
 
 public class Il2CppCustomAttributeDataRange : ReadableClass, IIl2CppTokenProvider
 {
@@ -12,5 +12,11 @@ public class Il2CppCustomAttributeDataRange : ReadableClass, IIl2CppTokenProvide
     {
         token = reader.ReadUInt32();
         startOffset = reader.ReadUInt32();
+    }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(token);
+        writer.Write(startOffset);
     }
 }

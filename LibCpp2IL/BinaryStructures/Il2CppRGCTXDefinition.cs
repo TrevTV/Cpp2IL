@@ -1,4 +1,5 @@
-﻿using LibCpp2IL.Reflection;
+using LibCpp2IL.Metadata;
+using LibCpp2IL.Reflection;
 
 namespace LibCpp2IL.BinaryStructures;
 
@@ -25,6 +26,10 @@ public class Il2CppRGCTXDefinition : ReadableClass
         {
             rgctxDataDummy = reader.ReadInt32();
         }
+        public override void Write(ClassWritingBinaryWriter writer)
+        {
+            writer.Write(rgctxDataDummy);
+        }
     }
 
     public class Il2CppRGCTXConstrainedData : ReadableClass
@@ -38,6 +43,12 @@ public class Il2CppRGCTXDefinition : ReadableClass
         {
             _typeIndex = reader.ReadInt32();
             _encodedMethodIndex = reader.ReadInt32();
+        }
+
+        public override void Write(ClassWritingBinaryWriter writer)
+        {
+            writer.Write(_typeIndex);
+            writer.Write(_encodedMethodIndex);
         }
     }
     [Version(Min = 27.2f)]
@@ -74,5 +85,17 @@ public class Il2CppRGCTXDefinition : ReadableClass
 
         }
 
+    }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        var sub29Type = (int)type;
+        var post29Type = (long)type;
+        writer.WritePrimitive(IsLessThan(29) ? sub29Type : post29Type);
+        if (IsLessThan(27.2f))
+        {
+            writer.WriteReadableClass(_defData);
+        }
+        // no binary writing
     }
 }

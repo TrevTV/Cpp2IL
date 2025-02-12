@@ -27,13 +27,13 @@ public class Il2CppMetadata : ClassReadingBinaryReader
     public Il2CppMethodDefinition[] methodDefs;
     public Il2CppParameterDefinition[] parameterDefs;
     public Il2CppFieldDefinition[] fieldDefs;
-    private Il2CppFieldDefaultValue[] fieldDefaultValues;
-    private Il2CppParameterDefaultValue[] parameterDefaultValues;
+    public Il2CppFieldDefaultValue[] fieldDefaultValues;
+    public Il2CppParameterDefaultValue[] parameterDefaultValues;
     public Il2CppPropertyDefinition[] propertyDefs;
     public List<Il2CppCustomAttributeTypeRange>? attributeTypeRanges; //Removed in v29
     public Il2CppStringLiteral[] stringLiterals;
     public Il2CppMetadataUsageList[]? metadataUsageLists; //Removed in v27
-    private Il2CppMetadataUsagePair[]? metadataUsagePairs; //Removed in v27
+    public Il2CppMetadataUsagePair[]? metadataUsagePairs; //Removed in v27
     public Il2CppRGCTXDefinition[]? RgctxDefinitions; //Moved to binary in v24.2
     
     public int[]? attributeTypes; //Removed in v29

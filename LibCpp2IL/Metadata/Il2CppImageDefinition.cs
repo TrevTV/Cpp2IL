@@ -51,4 +51,29 @@ public class Il2CppImageDefinition : ReadableClass
             customAttributeCount = reader.ReadUInt32();
         }
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(nameIndex);
+        writer.Write(assemblyIndex);
+
+        writer.Write(firstTypeIndex);
+        writer.Write(typeCount);
+
+        if (IsAtLeast(24f))
+        {
+            writer.Write(exportedTypeStart);
+            writer.Write(exportedTypeCount);
+        }
+
+        writer.Write(entryPointIndex);
+        writer.Write(token);
+
+        if (IsAtLeast(24.1f))
+        {
+            writer.Write(customAttributeStart);
+            writer.Write(customAttributeCount);
+        }
+    }
+
 }

@@ -35,4 +35,17 @@ public class Il2CppAssemblyDefinition : ReadableClass
         //We use ReadReadableHereNoLock because we're already in a lock, because we're in Read.
         AssemblyName = reader.ReadReadableHereNoLock<Il2CppAssemblyNameDefinition>();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(ImageIndex);
+        if (IsAtLeast(24.1f))
+            writer.Write(Token);
+        if (IsAtMost(24.0f))
+            writer.Write(CustomAttributeIndex);
+        writer.Write(ReferencedAssemblyStart);
+        writer.Write(ReferencedAssemblyCount);
+
+        writer.WriteReadableClass(AssemblyName);
+    }
 }

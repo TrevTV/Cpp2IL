@@ -186,4 +186,39 @@ public class Il2CppMethodDefinition : ReadableClass
         slot = reader.ReadUInt16();
         parameterCount = reader.ReadUInt16();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(nameIndex);
+
+        writer.Write(declaringTypeIdx);
+        writer.Write(returnTypeIdx);
+
+        if (IsAtLeast(31))
+            writer.Write(returnParameterToken);
+
+        writer.Write(parameterStart);
+
+        if (IsAtMost(24))
+            writer.Write(customAttributeIndex);
+
+        writer.Write(genericContainerIndex);
+
+        if (IsAtMost(24.15f))
+        {
+            writer.Write(methodIndex);
+            writer.Write(invokerIndex);
+            writer.Write(delegateWrapperIndex);
+            writer.Write(rgctxStartIndex);
+            writer.Write(rgctxCount);
+        }
+
+        writer.Write(token);
+
+        writer.Write(flags);
+        writer.Write(iflags);
+        writer.Write(slot);
+        writer.Write(parameterCount);
+    }
+
 }

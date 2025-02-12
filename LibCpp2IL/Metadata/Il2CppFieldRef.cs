@@ -21,4 +21,10 @@ public class Il2CppFieldRef : ReadableClass
         typeIndex = reader.ReadInt32();
         fieldIndex = reader.ReadInt32();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(typeIndex);
+        writer.Write(fieldIndex);
+    }
 }

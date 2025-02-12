@@ -14,4 +14,11 @@ public class Il2CppFieldDefaultValue : ReadableClass
         typeIndex = reader.ReadInt32();
         dataIndex = reader.ReadInt32();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(fieldIndex);
+        writer.Write(typeIndex);
+        writer.Write(dataIndex);
+    }
 }

@@ -34,4 +34,14 @@ public class Il2CppGenericParameter : ReadableClass
         genericParameterIndexInOwner = reader.ReadUInt16();
         flags = reader.ReadUInt16();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(ownerIndex);
+        writer.Write(nameIndex);
+        writer.Write(constraintsStart);
+        writer.Write(constraintsCount);
+        writer.Write(genericParameterIndexInOwner);
+        writer.Write(flags);
+    }
 }

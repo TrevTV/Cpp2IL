@@ -31,4 +31,17 @@ public class Il2CppParameterDefinition : ReadableClass, IIl2CppTokenProvider
 
         typeIndex = reader.ReadInt32();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(nameIndex);
+
+        writer.Write(token);
+
+        if (IsAtMost(24f))
+            writer.Write(customAttributeIndex);
+
+        writer.Write(typeIndex);
+    }
+
 }

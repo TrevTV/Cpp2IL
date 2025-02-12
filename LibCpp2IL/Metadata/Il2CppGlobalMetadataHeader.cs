@@ -188,4 +188,108 @@ public class Il2CppGlobalMetadataHeader : ReadableClass
             exportedTypeDefinitionsCount = reader.ReadInt32();
         }
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(magicNumber);
+        writer.Write(version);
+        writer.Write(stringLiteralOffset);
+        writer.Write(stringLiteralCount);
+        writer.Write(stringLiteralDataOffset);
+        writer.Write(stringLiteralDataCount);
+        writer.Write(stringOffset);
+        writer.Write(stringCount);
+        writer.Write(eventsOffset);
+        writer.Write(eventsCount);
+        writer.Write(propertiesOffset);
+        writer.Write(propertiesCount);
+        writer.Write(methodsOffset);
+        writer.Write(methodsCount);
+        writer.Write(parameterDefaultValuesOffset);
+        writer.Write(parameterDefaultValuesCount);
+        writer.Write(fieldDefaultValuesOffset);
+        writer.Write(fieldDefaultValuesCount);
+        writer.Write(fieldAndParameterDefaultValueDataOffset);
+        writer.Write(fieldAndParameterDefaultValueDataCount);
+        writer.Write(fieldMarshaledSizesOffset);
+        writer.Write(fieldMarshaledSizesCount);
+        writer.Write(parametersOffset);
+        writer.Write(parametersCount);
+        writer.Write(fieldsOffset);
+        writer.Write(fieldsCount);
+        writer.Write(genericParametersOffset);
+        writer.Write(genericParametersCount);
+        writer.Write(genericParameterConstraintsOffset);
+        writer.Write(genericParameterConstraintsCount);
+        writer.Write(genericContainersOffset);
+        writer.Write(genericContainersCount);
+        writer.Write(nestedTypesOffset);
+        writer.Write(nestedTypesCount);
+        writer.Write(interfacesOffset);
+        writer.Write(interfacesCount);
+        writer.Write(vtableMethodsOffset);
+        writer.Write(vtableMethodsCount);
+        writer.Write(interfaceOffsetsOffset);
+        writer.Write(interfaceOffsetsCount);
+        writer.Write(typeDefinitionsOffset);
+        writer.Write(typeDefinitionsCount);
+
+        if (IsAtMost(24.15f))
+        {
+            writer.Write(rgctxEntriesOffset);
+            writer.Write(rgctxEntriesCount);
+        }
+
+        writer.Write(imagesOffset);
+        writer.Write(imagesCount);
+        writer.Write(assembliesOffset);
+        writer.Write(assembliesCount);
+
+        if (IsLessThan(27f))
+        {
+            writer.Write(metadataUsageListsOffset);
+            writer.Write(metadataUsageListsCount);
+            writer.Write(metadataUsagePairsOffset);
+            writer.Write(metadataUsagePairsCount);
+        }
+
+        writer.Write(fieldRefsOffset);
+        writer.Write(fieldRefsCount);
+        writer.Write(referencedAssembliesOffset);
+        writer.Write(referencedAssembliesCount);
+
+        if (IsLessThan(29f))
+        {
+            writer.Write(attributesInfoOffset);
+            writer.Write(attributesInfoCount);
+            writer.Write(attributeTypesOffset);
+            writer.Write(attributeTypesCount);
+        }
+        else
+        {
+            writer.Write(attributeDataOffset);
+            writer.Write(attributeDataCount);
+            writer.Write(attributeDataRangeOffset);
+            writer.Write(attributeDataRangeCount);
+        }
+
+        writer.Write(unresolvedVirtualCallParameterTypesOffset);
+        writer.Write(unresolvedVirtualCallParameterTypesCount);
+        writer.Write(unresolvedVirtualCallParameterRangesOffset);
+        writer.Write(unresolvedVirtualCallParameterRangesCount);
+        writer.Write(windowsRuntimeTypeNamesOffset);
+        writer.Write(windowsRuntimeTypeNamesSize);
+
+        if (IsAtLeast(27f))
+        {
+            writer.Write(windowsRuntimeStringsOffset);
+            writer.Write(windowsRuntimeStringsSize);
+        }
+
+        if (IsAtLeast(24f))
+        {
+            writer.Write(exportedTypeDefinitionsOffset);
+            writer.Write(exportedTypeDefinitionsCount);
+        }
+    }
 }

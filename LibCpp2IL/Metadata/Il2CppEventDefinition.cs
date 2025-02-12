@@ -75,4 +75,17 @@ public class Il2CppEventDefinition : ReadableClass
             customAttributeIndex = reader.ReadInt32();
         token = reader.ReadUInt32();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(nameIndex);
+
+        writer.Write(typeIndex);
+        writer.Write(add);
+        writer.Write(remove);
+        writer.Write(raise);
+        if (IsAtMost(24f))
+            writer.Write(customAttributeIndex);
+        writer.Write(token);
+    }
 }

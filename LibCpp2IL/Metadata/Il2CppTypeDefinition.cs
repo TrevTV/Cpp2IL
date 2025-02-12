@@ -400,4 +400,53 @@ public class Il2CppTypeDefinition : ReadableClass
         Bitfield = reader.ReadUInt32();
         Token = reader.ReadUInt32();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(NameIndex);
+        writer.Write(NamespaceIndex);
+
+        if (IsAtMost(24f))
+            writer.Write(CustomAttributeIndex);
+
+        writer.Write(ByvalTypeIndex);
+
+        if (IsLessThan(27f))
+            writer.Write(ByrefTypeIndex);
+
+        writer.Write(DeclaringTypeIndex);
+        writer.Write(ParentIndex);
+        writer.Write(ElementTypeIndex);
+
+        if (IsAtMost(24.15f))
+        {
+            writer.Write(RgctxStartIndex);
+            writer.Write(RgctxCount);
+        }
+
+        writer.Write(GenericContainerIndex);
+        writer.Write(Flags);
+
+        writer.Write(FirstFieldIdx);
+        writer.Write(FirstMethodIdx);
+        writer.Write(FirstEventId);
+        writer.Write(FirstPropertyId);
+        writer.Write(NestedTypesStart);
+        writer.Write(InterfacesStart);
+        writer.Write(VtableStart);
+        writer.Write(InterfaceOffsetsStart);
+
+        writer.Write(MethodCount);
+        writer.Write(PropertyCount);
+        writer.Write(FieldCount);
+        writer.Write(EventCount);
+        writer.Write(NestedTypeCount);
+        writer.Write(VtableCount);
+        writer.Write(InterfacesCount);
+        writer.Write(InterfaceOffsetsCount);
+
+        writer.Write(Bitfield);
+        writer.Write(Token);
+    }
+
 }

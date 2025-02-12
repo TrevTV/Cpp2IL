@@ -1,4 +1,5 @@
 using System;
+using LibCpp2IL.Metadata;
 
 namespace LibCpp2IL;
 
@@ -13,4 +14,5 @@ public abstract class ReadableClass
     protected bool Is(float vers) => Math.Abs(MetadataVersion - vers) < 0.001f;
 
     public abstract void Read(ClassReadingBinaryReader reader);
+    public virtual void Write(ClassWritingBinaryWriter writer) { }
 }
