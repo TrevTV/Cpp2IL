@@ -165,4 +165,21 @@ public class Il2CppAssemblyNameDefinition : ReadableClass
         revision = reader.ReadInt32();
         publicKeyToken = reader.ReadUInt64();
     }
+
+    public override void Write(ClassWritingBinaryWriter writer)
+    {
+        writer.Write(nameIndex);
+        writer.Write(cultureIndex);
+        if (IsAtMost(24.3f) && IsNot(24.15f))
+            writer.Write(hashValueIndex);
+        writer.Write(publicKeyIndex);
+        writer.Write(hash_alg);
+        writer.Write(hash_len);
+        writer.Write(flags);
+        writer.Write(major);
+        writer.Write(minor);
+        writer.Write(build);
+        writer.Write(revision);
+        writer.Write(publicKeyToken);
+    }
 }
