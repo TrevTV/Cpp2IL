@@ -214,13 +214,25 @@ public static class Il2CppMetadataWriter
             writer.WriteStringWithNullTerminatorAtRawAddress(addr, str);
         }
 
+        // TODO: this section is writing EFs in place of seemingly important data for an unknown reason, doing a direct byte copy fixes it for now
+
         // strings
-        for (var i = 0; i < m.metadataHeader.stringCount; i++)
+        /*for (var i = 0; i < m.metadataHeader.stringCount; i++)
         {
             var str = m.GetStringFromIndex(i);
             var addr = m.metadataHeader.stringOffset + i;
             writer.WriteStringWithNullTerminatorAtRawAddress(addr, str);
-        }
+        }*/
+
+        writer.WriteClassArrayAtRawAddr<byte>(m.metadataHeader.stringOffset, GetStringDataBytes(m));
+    }
+
+    private static byte[] GetStringDataBytes(Il2CppMetadata m)
+    {
+        var offset = m.metadataHeader.stringOffset;
+        var count = m.metadataHeader.stringCount;
+
+        return m.ReadByteArrayAtRawAddress(offset, count);
     }
 }
 
