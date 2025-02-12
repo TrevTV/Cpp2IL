@@ -65,6 +65,11 @@ public static class Il2CppMetadataWriter
         writer.WriteMetadataClassArray<Il2CppFieldDefaultValue>(m.metadataHeader.fieldDefaultValuesOffset, m.fieldDefaultValues);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
 
+        LibLogger.Verbose("\tWriting field marshaled sizes...");
+        start = DateTime.Now;
+        writer.WriteMetadataClassArray<Il2CppFieldMarshaledSize>(m.metadataHeader.fieldMarshaledSizesOffset, m.fieldMarshaledSizes);
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
         LibLogger.Verbose("\tWriting default parameter values...");
         start = DateTime.Now;
         writer.WriteMetadataClassArray<Il2CppParameterDefaultValue>(m.metadataHeader.parameterDefaultValuesOffset, m.parameterDefaultValues);

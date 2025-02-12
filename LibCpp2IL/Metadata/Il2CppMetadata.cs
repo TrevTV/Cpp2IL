@@ -28,6 +28,7 @@ public class Il2CppMetadata : ClassReadingBinaryReader
     public Il2CppParameterDefinition[] parameterDefs;
     public Il2CppFieldDefinition[] fieldDefs;
     public Il2CppFieldDefaultValue[] fieldDefaultValues;
+    public Il2CppFieldMarshaledSize[] fieldMarshaledSizes;
     public Il2CppParameterDefaultValue[] parameterDefaultValues;
     public Il2CppPropertyDefinition[] propertyDefs;
     public List<Il2CppCustomAttributeTypeRange>? attributeTypeRanges; //Removed in v29
@@ -177,6 +178,11 @@ public class Il2CppMetadata : ClassReadingBinaryReader
         LibLogger.Verbose("\tReading default field values...");
         start = DateTime.Now;
         fieldDefaultValues = ReadMetadataClassArray<Il2CppFieldDefaultValue>(metadataHeader.fieldDefaultValuesOffset, metadataHeader.fieldDefaultValuesCount);
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
+        LibLogger.Verbose("\tReading field marshaled sizes...");
+        start = DateTime.Now;
+        fieldMarshaledSizes = ReadMetadataClassArray<Il2CppFieldMarshaledSize>(metadataHeader.fieldMarshaledSizesOffset, metadataHeader.fieldMarshaledSizesCount);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
 
         LibLogger.Verbose("\tReading default parameter values...");
