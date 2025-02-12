@@ -17,6 +17,8 @@ using Cpp2IL.Core.Exceptions;
 using LibCpp2IL.Wasm;
 using AssetRipper.Primitives;
 using Cpp2IL.Core.Extensions;
+using LibCpp2IL;
+using LibCpp2IL.Metadata;
 
 #if NET472
 using LibCpp2IL;
@@ -681,91 +683,16 @@ internal class Program
         if (runtimeArgs.LowMemoryMode)
             GC.Collect();
 
-        foreach (var (key, value) in runtimeArgs.ProcessingLayerConfigurationOptions)
-            Cpp2IlApi.CurrentAppContext.PutExtraData(key, value);
-
-        //Pre-process processing layers, allowing them to stop others from running
-        Logger.InfoNewline("Pre-processing processing layers...");
-        var layers = runtimeArgs.ProcessingLayersToRun.Clone();
-        RunProcessingLayers(runtimeArgs, processingLayer => processingLayer.PreProcess(Cpp2IlApi.CurrentAppContext, layers));
-        runtimeArgs.ProcessingLayersToRun = layers;
-
-        //Run processing layers
-        Logger.InfoNewline("Invoking processing layers...");
-        RunProcessingLayers(runtimeArgs, processingLayer => processingLayer.Process(Cpp2IlApi.CurrentAppContext));
-
-        var outputStart = DateTime.Now;
-
-        if (runtimeArgs.OutputFormat != null)
-        {
-            if (runtimeArgs.LowMemoryMode)
-                GC.Collect();
-
-            Logger.InfoNewline($"Outputting as {runtimeArgs.OutputFormat.OutputFormatName} to {runtimeArgs.OutputRootDirectory}...");
-            runtimeArgs.OutputFormat.DoOutput(Cpp2IlApi.CurrentAppContext, runtimeArgs.OutputRootDirectory);
-            Logger.InfoNewline($"Finished outputting in {(DateTime.Now - outputStart).TotalMilliseconds}ms");
-        }
-        else
-        {
-            Logger.WarnNewline("No output format requested, so not outputting anything. The il2cpp game loaded properly though! (Hint: You probably want to specify an output format, try --output-as)");
-        }
-
-        // if (runtimeArgs.EnableMetadataGeneration)
-        // Cpp2IlApi.GenerateMetadataForAllAssemblies(runtimeArgs.OutputRootDirectory);
-
-        // if (runtimeArgs.EnableAnalysis)
-        // Cpp2IlApi.PopulateConcreteImplementations();
-
-        CleanupExtractedFiles();
-
-        Cpp2IlPluginManager.CallOnFinish();
+        WeirdStripStuff();
 
         Logger.InfoNewline($"Done. Total execution time: {(DateTime.Now - executionStart).TotalMilliseconds}ms");
         return 0;
     }
 
-    private static void RunProcessingLayers(Cpp2IlRuntimeArgs runtimeArgs, Action<Cpp2IlProcessingLayer> run)
+    private static void WeirdStripStuff()
     {
-        foreach (var processingLayer in runtimeArgs.ProcessingLayersToRun)
-        {
-            var processorStart = DateTime.Now;
+        var metadata = LibCpp2IlMain.TheMetadata!;
 
-            Logger.InfoNewline($"    {processingLayer.Name}...");
-
-#if !DEBUG
-                try
-                {
-#endif
-            run(processingLayer);
-#if !DEBUG
-                }
-                catch (Exception e)
-                {
-                    Logger.ErrorNewline($"Processing layer {processingLayer.Id} threw an exception: {e}");
-                    Environment.Exit(1);
-                }
-#endif
-
-            if (runtimeArgs.LowMemoryMode)
-                GC.Collect();
-
-            Logger.InfoNewline($"    {processingLayer.Name} finished in {(DateTime.Now - processorStart).TotalMilliseconds}ms");
-        }
-    }
-
-    private static void CleanupExtractedFiles()
-    {
-        foreach (var p in PathsToDeleteOnExit)
-        {
-            try
-            {
-                Logger.InfoNewline($"Cleaning up {p}...");
-                File.Delete(p);
-            }
-            catch (Exception)
-            {
-                //Ignore
-            }
-        }
+        Il2CppMetadataWriter.WriteTo(metadata, "E:\\global-metadata-mod.dat");
     }
 }
