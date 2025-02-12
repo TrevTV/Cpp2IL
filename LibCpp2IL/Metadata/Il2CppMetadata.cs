@@ -54,6 +54,7 @@ public class Il2CppMetadata : ClassReadingBinaryReader
 
     public int[] referencedAssemblies;
 
+    public byte[] fieldAndParameterDefaultValueData;
     public int[] unresolvedVirtualCallParameterTypes;
     public Il2CppRange[] unresolvedVirtualCallParameterRanges;
     public Il2CppWindowsRuntimeTypeNamePair[] windowsRuntimeTypeNames;
@@ -196,6 +197,11 @@ public class Il2CppMetadata : ClassReadingBinaryReader
         parameterDefaultValues = ReadMetadataClassArray<Il2CppParameterDefaultValue>(metadataHeader.parameterDefaultValuesOffset, metadataHeader.parameterDefaultValuesCount);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
 
+        LibLogger.Verbose("\tReading field and parameter default value data...");
+        start = DateTime.Now;
+        fieldAndParameterDefaultValueData = ReadByteArrayAtRawAddress(metadataHeader.fieldAndParameterDefaultValueDataOffset, metadataHeader.fieldAndParameterDefaultValueDataCount);
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
         LibLogger.Verbose("\tReading property definitions...");
         start = DateTime.Now;
         propertyDefs = ReadMetadataClassArray<Il2CppPropertyDefinition>(metadataHeader.propertiesOffset, metadataHeader.propertiesCount);
@@ -268,8 +274,6 @@ public class Il2CppMetadata : ClassReadingBinaryReader
         start = DateTime.Now;
         fieldRefs = ReadMetadataClassArray<Il2CppFieldRef>(metadataHeader.fieldRefsOffset, metadataHeader.fieldRefsCount);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        // added fields
 
         LibLogger.Verbose("\tReading unresolved virtual call parameter types...");
         start = DateTime.Now;

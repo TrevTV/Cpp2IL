@@ -77,7 +77,7 @@ public static class Il2CppMetadataWriter
 
         LibLogger.Verbose("\tWriting default field and parameter values...");
         start = DateTime.Now;
-        writer.WriteClassArrayAtRawAddr<byte>(m.metadataHeader.fieldAndParameterDefaultValueDataOffset, GetFieldAndParameterDefaultValueData(m));
+        writer.WriteClassArrayAtRawAddr<byte>(m.metadataHeader.fieldAndParameterDefaultValueDataOffset, m.fieldAndParameterDefaultValueData);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
 
         LibLogger.Verbose("\tWriting property definitions...");
@@ -152,8 +152,6 @@ public static class Il2CppMetadataWriter
         writer.WriteMetadataClassArray<Il2CppFieldRef>(m.metadataHeader.fieldRefsOffset, m.fieldRefs);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
 
-        // added fields
-
         LibLogger.Verbose("\tWriting unresolved virtual call parameter types...");
         start = DateTime.Now;
         writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.unresolvedVirtualCallParameterTypesOffset, m.unresolvedVirtualCallParameterTypes);
@@ -212,7 +210,6 @@ public static class Il2CppMetadataWriter
         for (uint i = 0; i < m.stringLiterals.Length; i++)
         {
             var str = m.GetStringLiteralFromIndex(i);
-            //LibLogger.VerboseNewline(str);
             var addr = m.metadataHeader.stringLiteralDataOffset + m.stringLiterals[i].dataIndex;
             writer.WriteStringWithNullTerminatorAtRawAddress(addr, str);
         }
@@ -221,18 +218,9 @@ public static class Il2CppMetadataWriter
         for (var i = 0; i < m.metadataHeader.stringCount; i++)
         {
             var str = m.GetStringFromIndex(i);
-            //LibLogger.VerboseNewline(str);
             var addr = m.metadataHeader.stringOffset + i;
             writer.WriteStringWithNullTerminatorAtRawAddress(addr, str);
         }
-    }
-
-    private static byte[] GetFieldAndParameterDefaultValueData(Il2CppMetadata m)
-    {
-        var offset = m.metadataHeader.fieldAndParameterDefaultValueDataOffset;
-        var count = m.metadataHeader.fieldAndParameterDefaultValueDataCount;
-
-        return m.ReadByteArrayAtRawAddress(offset, count);
     }
 }
 
