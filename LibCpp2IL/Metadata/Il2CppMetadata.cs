@@ -54,6 +54,12 @@ public class Il2CppMetadata : ClassReadingBinaryReader
 
     public int[] referencedAssemblies;
 
+    public int[] unresolvedVirtualCallParameterTypes;
+    public Il2CppRange[] unresolvedVirtualCallParameterRanges;
+    public Il2CppWindowsRuntimeTypeNamePair[] windowsRuntimeTypeNames;
+    public string[] windowsRuntimeStrings;
+    public int[] exportedTypeDefinitions;
+
     private readonly Dictionary<int, Il2CppFieldDefaultValue> _fieldDefaultValueLookup = new Dictionary<int, Il2CppFieldDefaultValue>();
     private readonly Dictionary<Il2CppFieldDefinition, Il2CppFieldDefaultValue> _fieldDefaultLookupNew = new Dictionary<Il2CppFieldDefinition, Il2CppFieldDefaultValue>();
 
@@ -262,6 +268,47 @@ public class Il2CppMetadata : ClassReadingBinaryReader
         start = DateTime.Now;
         fieldRefs = ReadMetadataClassArray<Il2CppFieldRef>(metadataHeader.fieldRefsOffset, metadataHeader.fieldRefsCount);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
+        // added fields
+
+        LibLogger.Verbose("\tReading unresolved virtual call parameter types...");
+        start = DateTime.Now;
+        unresolvedVirtualCallParameterTypes = ReadClassArrayAtRawAddr<int>(metadataHeader.unresolvedVirtualCallParameterTypesOffset, metadataHeader.unresolvedVirtualCallParameterTypesCount / 4);
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
+        LibLogger.Verbose("\tReading unresolved virtual call parameter ranges...");
+        start = DateTime.Now;
+        unresolvedVirtualCallParameterRanges = ReadMetadataClassArray<Il2CppRange>(metadataHeader.unresolvedVirtualCallParameterRangesOffset, metadataHeader.unresolvedVirtualCallParameterRangesCount);
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
+        if (metadataHeader.windowsRuntimeTypeNamesSize > 0)
+        {
+            // TODO: is this an array? it says "size" instead of "count" so im not really sure
+            // it likely wont even matter for this since it's for windows
+
+            LibLogger.Verbose("\tReading Windows runtime type names...");
+            start = DateTime.Now;
+            windowsRuntimeTypeNames = ReadMetadataClassArray<Il2CppWindowsRuntimeTypeNamePair>(metadataHeader.windowsRuntimeTypeNamesOffset, metadataHeader.unresolvedVirtualCallParameterRangesCount);
+            LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+        }
+        else
+            windowsRuntimeTypeNames = [];
+
+        if (MetadataVersion >= 27)
+        {
+            //LibLogger.Verbose("\tReading Windows runtime strings...");
+            //start = DateTime.Now;
+            //windowsRuntimeTypeNames = ReadMetadataClassArray<Il2CppWindowsRuntimeTypeNamePair>(metadataHeader.windowsRuntimeTypeNamesOffset, metadataHeader.unresolvedVirtualCallParameterRangesCount);
+            //LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+        }
+
+        if (MetadataVersion >= 24)
+        {
+            LibLogger.Verbose("\tReading exported type definitions...");
+            start = DateTime.Now;
+            exportedTypeDefinitions = ReadClassArrayAtRawAddr<int>(metadataHeader.exportedTypeDefinitionsOffset, metadataHeader.exportedTypeDefinitionsCount / 4);
+            LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+        }
 
         //v21+ fields
 

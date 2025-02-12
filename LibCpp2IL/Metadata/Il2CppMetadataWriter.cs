@@ -152,15 +152,49 @@ public static class Il2CppMetadataWriter
         writer.WriteMetadataClassArray<Il2CppFieldRef>(m.metadataHeader.fieldRefsOffset, m.fieldRefs);
         LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
 
-        //v21+ fields
+        // added fields
 
+        LibLogger.Verbose("\tWriting unresolved virtual call parameter types...");
+        start = DateTime.Now;
+        writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.unresolvedVirtualCallParameterTypesOffset, m.unresolvedVirtualCallParameterTypes);
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
+        LibLogger.Verbose("\tWriting unresolved virtual call parameter ranges...");
+        start = DateTime.Now;
+        writer.WriteMetadataClassArray<Il2CppRange>(m.metadataHeader.unresolvedVirtualCallParameterRangesOffset, m.unresolvedVirtualCallParameterRanges);
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
+        // TODO: is this an array? it says "size" instead of "count" so im not really sure
+        // it likely wont even matter for this since it's for windows
+        LibLogger.Verbose("\tWriting Windows runtime type names...");
+        start = DateTime.Now;
+        writer.WriteMetadataClassArray<Il2CppWindowsRuntimeTypeNamePair>(m.metadataHeader.windowsRuntimeTypeNamesOffset, m.windowsRuntimeTypeNames);
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+
+        if (m.MetadataVersion >= 27)
+        {
+            //LibLogger.Verbose("\tReading Windows runtime strings...");
+            //start = DateTime.Now;
+            //windowsRuntimeTypeNames = ReadMetadataClassArray<Il2CppWindowsRuntimeTypeNamePair>(metadataHeader.windowsRuntimeTypeNamesOffset, metadataHeader.unresolvedVirtualCallParameterRangesCount);
+            //LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+        }
+
+        if (m.MetadataVersion >= 24)
+        {
+            LibLogger.Verbose("\tWriting exported type definitions...");
+            start = DateTime.Now;
+            writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.exportedTypeDefinitionsOffset, m.exportedTypeDefinitions);
+            LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+        }
+
+        //v21+ fields
         if (m.MetadataVersion < 29)
         {
             //Removed in v29
             LibLogger.Verbose("\tWriting attribute types...");
             start = DateTime.Now;
             writer.WriteMetadataClassArray<Il2CppCustomAttributeTypeRange>(m.metadataHeader.attributesInfoOffset, [.. m.attributeTypeRanges!]);
-            writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.attributeTypesOffset, m.attributeTypes);
+            writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.attributeTypesOffset, m.attributeTypes!);
             LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
         }
         else
