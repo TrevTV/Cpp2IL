@@ -19,6 +19,19 @@ public static class Il2CppMetadataWriter
         _metadata = m;
         var mh = m.metadataHeader;
 
+        // caching these here as we'll be modifying from the original offsets next
+        var stringData = GetStringDataBytes(m);
+        List<byte[]> literalsData = [];
+        for (uint i = 0; i < m.stringLiterals.Length; i++)
+        {
+            var literal = m.stringLiterals[i];
+            if (literal.injected)
+                break; // we've hit the injected ones so we're stopping here
+
+            var addr = m.metadataHeader.stringLiteralDataOffset + literal.dataIndex;
+            literalsData.Add(m.ReadByteArrayAtRawAddress(addr, (int)literal.length));
+        }
+
         UpdateHeaderLengths(m);
 
         RecalculateOffsets(m);
@@ -89,15 +102,22 @@ public static class Il2CppMetadataWriter
             WriteMetadataClassArray("attribute data", mh.attributeDataRangeOffset, [.. m.AttributeDataRanges!]);
         }
 
-        // TODO: make stringLiterals and strings modifiable
         for (uint i = 0; i < m.stringLiterals.Length; i++)
         {
-            var str = m.GetStringLiteralFromIndex(i);
-            var addr = m.metadataHeader.stringLiteralDataOffset + m.stringLiterals[i].dataIndex;
-            writer.WriteStringWithNullTerminator(addr, str);
+            var literal = m.stringLiterals[i];
+            var addr = m.metadataHeader.stringLiteralDataOffset + literal.dataIndex;
+
+            var str = literal.injected ? Encoding.UTF8.GetBytes(literal.injectedString!) : literalsData[(int)i];
+            writer.WriteClassArray(addr, str);
+            //writer.Write((byte)0);
         }
 
-        writer.WriteClassArray<byte>(m.metadataHeader.stringOffset, GetStringDataBytes(m));
+        writer.WriteClassArray(m.metadataHeader.stringOffset, stringData);
+        foreach (var s in m.stringsToInject)
+        {
+            writer.Write(Encoding.UTF8.GetBytes(s));
+            writer.Write((byte)0);
+        }
 
         // metadataHeader (includes magic + version)
         writer.WriteReadableClassAtAddr(0, mh);
@@ -107,37 +127,56 @@ public static class Il2CppMetadataWriter
     {
         var mh = m.metadataHeader;
 
-        UpdateMetadataClassArrayLength(ref mh.imagesCount, m.imageDefinitions);
-        UpdateMetadataClassArrayLength(ref mh.assembliesCount, m.AssemblyDefinitions);
-        UpdateMetadataClassArrayLength(ref mh.typeDefinitionsCount, m.typeDefs);
-        UpdateMetadataClassArrayLength(ref mh.interfaceOffsetsCount, m.interfaceOffsets);
-        UpdateClassArrayLength(ref mh.vtableMethodsCount, m.VTableMethodIndices);
+        UpdateMetadataClassArrayLength(ref mh.stringLiteralCount, m.stringLiterals);
+
+        var lastLiteral = m.stringLiterals.Last();
+        mh.stringLiteralDataCount = lastLiteral.dataIndex + (int)lastLiteral.length;
+        while (mh.stringLiteralDataCount % 4 != 0) // TODO: i *think* this is correct, but its only based on a single global-metadata
+            mh.stringLiteralDataCount++;
+
+        mh.stringCount += m.injectedStringOffset;
+
+        UpdateMetadataClassArrayLength(ref mh.eventsCount, m.eventDefs);
+        UpdateMetadataClassArrayLength(ref mh.propertiesCount, m.propertyDefs);
         UpdateMetadataClassArrayLength(ref mh.methodsCount, m.methodDefs);
+        UpdateMetadataClassArrayLength(ref mh.parameterDefaultValuesCount, m.parameterDefaultValues);
+        UpdateMetadataClassArrayLength(ref mh.fieldDefaultValuesCount, m.fieldDefaultValues);
+        UpdateClassArrayLength(ref mh.fieldAndParameterDefaultValueDataCount, m.fieldAndParameterDefaultValueData);
+        UpdateMetadataClassArrayLength(ref mh.fieldMarshaledSizesCount, m.fieldMarshaledSizes);
         UpdateMetadataClassArrayLength(ref mh.parametersCount, m.parameterDefs);
         UpdateMetadataClassArrayLength(ref mh.fieldsCount, m.fieldDefs);
-        UpdateMetadataClassArrayLength(ref mh.fieldDefaultValuesCount, m.fieldDefaultValues);
-        UpdateMetadataClassArrayLength(ref mh.fieldMarshaledSizesCount, m.fieldMarshaledSizes);
-        UpdateMetadataClassArrayLength(ref mh.parameterDefaultValuesCount, m.parameterDefaultValues);
-        UpdateClassArrayLength(ref mh.fieldAndParameterDefaultValueDataCount, m.fieldAndParameterDefaultValueData);
-        UpdateMetadataClassArrayLength(ref mh.propertiesCount, m.propertyDefs);
-        UpdateClassArrayLength(ref mh.interfacesCount, m.interfaceIndices);
-        UpdateClassArrayLength(ref mh.nestedTypesCount, m.nestedTypeIndices);
-        UpdateMetadataClassArrayLength(ref mh.eventsCount, m.eventDefs);
-        UpdateMetadataClassArrayLength(ref mh.genericContainersCount, m.genericContainers);
         UpdateMetadataClassArrayLength(ref mh.genericParametersCount, m.genericParameters);
         UpdateClassArrayLength(ref mh.genericParameterConstraintsCount, m.constraintIndices);
-        UpdateClassArrayLength(ref mh.referencedAssembliesCount, m.referencedAssemblies);
-        UpdateMetadataClassArrayLength(ref mh.stringLiteralCount, m.stringLiterals);
+        UpdateMetadataClassArrayLength(ref mh.genericContainersCount, m.genericContainers);
+        UpdateClassArrayLength(ref mh.nestedTypesCount, m.nestedTypeIndices);
+        UpdateClassArrayLength(ref mh.interfacesCount, m.interfaceIndices);
+        UpdateClassArrayLength(ref mh.vtableMethodsCount, m.VTableMethodIndices);
+        UpdateMetadataClassArrayLength(ref mh.interfaceOffsetsCount, m.interfaceOffsets);
+        UpdateMetadataClassArrayLength(ref mh.typeDefinitionsCount, m.typeDefs);
         UpdateMetadataClassArrayLength(ref mh.rgctxEntriesCount, m.RgctxDefinitions!);
+        UpdateMetadataClassArrayLength(ref mh.imagesCount, m.imageDefinitions);
+        UpdateMetadataClassArrayLength(ref mh.assembliesCount, m.AssemblyDefinitions);
         UpdateMetadataClassArrayLength(ref mh.metadataUsageListsCount, m.metadataUsageLists!);
         UpdateMetadataClassArrayLength(ref mh.metadataUsagePairsCount, m.metadataUsagePairs!);
         UpdateMetadataClassArrayLength(ref mh.fieldRefsCount, m.fieldRefs);
-        UpdateClassArrayLength(ref mh.unresolvedVirtualCallParameterTypesCount, m.unresolvedVirtualCallParameterTypes);
-        UpdateMetadataClassArrayLength(ref mh.unresolvedVirtualCallParameterRangesCount, m.unresolvedVirtualCallParameterRanges);
-        UpdateMetadataClassArrayLength(ref mh.windowsRuntimeTypeNamesSize, m.windowsRuntimeTypeNames);
-        UpdateClassArrayLength(ref mh.exportedTypeDefinitionsCount, m.exportedTypeDefinitions);
+        UpdateClassArrayLength(ref mh.referencedAssembliesCount, m.referencedAssemblies);
+
+        UpdateClassArrayLength(ref mh.attributeTypesCount, m.attributeTypes!);
+        if (m.attributeTypeRanges != null)
+            UpdateMetadataClassArrayLength(ref mh.attributesInfoCount, [.. m.attributeTypeRanges!]);
+
+        // TODO: implement attributeData for post-29 version metadatas
+        //UpdateClassArrayLength(ref mh.attributeTypesCount, m.attributeData!);
         if (m.AttributeDataRanges != null)
             UpdateMetadataClassArrayLength(ref mh.attributeDataRangeCount, [.. m.AttributeDataRanges!]);
+
+        UpdateClassArrayLength(ref mh.unresolvedVirtualCallParameterTypesCount, m.unresolvedVirtualCallParameterTypes);
+        UpdateMetadataClassArrayLength(ref mh.unresolvedVirtualCallParameterRangesCount, m.unresolvedVirtualCallParameterRanges);
+
+        UpdateMetadataClassArrayLength(ref mh.windowsRuntimeTypeNamesSize, m.windowsRuntimeTypeNames);
+        // TODO: windowsRuntimeStrings
+
+        UpdateClassArrayLength(ref mh.exportedTypeDefinitionsCount, m.exportedTypeDefinitions);
     }
 
     private static void WriteMetadataClassArray<T>(string name, int offset, T[] data) where T : ReadableClass

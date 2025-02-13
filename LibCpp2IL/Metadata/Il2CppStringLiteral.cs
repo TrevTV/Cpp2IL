@@ -4,6 +4,8 @@ public class Il2CppStringLiteral : ReadableClass
 {
     public uint length;
     public int dataIndex;
+    public string? injectedString = null;
+    public bool injected = false;
 
     public override void Read(ClassReadingBinaryReader reader)
     {

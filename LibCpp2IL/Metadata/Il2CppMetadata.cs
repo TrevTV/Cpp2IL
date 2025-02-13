@@ -61,6 +61,9 @@ public class Il2CppMetadata : ClassReadingBinaryReader
     public string[] windowsRuntimeStrings;
     public int[] exportedTypeDefinitions;
 
+    public List<string> stringsToInject = [];
+    public int injectedStringOffset = 0;
+
     private readonly Dictionary<int, Il2CppFieldDefaultValue> _fieldDefaultValueLookup = new Dictionary<int, Il2CppFieldDefaultValue>();
     private readonly Dictionary<Il2CppFieldDefinition, Il2CppFieldDefaultValue> _fieldDefaultLookupNew = new Dictionary<Il2CppFieldDefinition, Il2CppFieldDefaultValue>();
 
@@ -535,5 +538,35 @@ public class Il2CppMetadata : ClassReadingBinaryReader
         var stringLiteral = stringLiterals[index];
 
         return Encoding.UTF8.GetString(ReadByteArrayAtRawAddress(metadataHeader.stringLiteralDataOffset + stringLiteral.dataIndex, (int)stringLiteral.length));
+    }
+
+    public int InjectNewStringLiteral(string s)
+    {
+        var lastLiteral = stringLiterals[^1];
+
+        var literal = new Il2CppStringLiteral()
+        {
+            length = (uint)Encoding.UTF8.GetByteCount(s),
+            dataIndex = lastLiteral.dataIndex + (int)lastLiteral.length,
+            injected = true,
+            injectedString = s
+        };
+
+        var literalList = stringLiterals.ToList();
+        literalList.Add(literal);
+        stringLiterals = [.. literalList];
+
+        return literal.dataIndex;
+    }
+
+    public int InjectNewString(string s)
+    {
+        var stringOffset = metadataHeader.stringCount + injectedStringOffset;
+
+        stringsToInject.Add(s);
+
+        injectedStringOffset += Encoding.UTF8.GetByteCount(s) + 1; // extra for null termination
+
+        return stringOffset;
     }
 }
