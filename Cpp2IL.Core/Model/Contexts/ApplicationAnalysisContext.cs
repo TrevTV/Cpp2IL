@@ -125,31 +125,6 @@ public class ApplicationAnalysisContext : ContextWithDataStorage
 
             MethodsByAddress[ptr].Add(m);
         });
-
-        Logger.VerboseNewline("\tProcessing concrete generic methods...");
-        foreach (var methodRef in Binary.ConcreteGenericMethods.Values.SelectMany(v => v))
-        {
-#if !DEBUG
-            try
-            {
-#endif
-            var gm = new ConcreteGenericMethodAnalysisContext(methodRef, this);
-
-            var ptr = InstructionSet.GetPointerForMethod(gm);
-
-            if (!MethodsByAddress.ContainsKey(ptr))
-                MethodsByAddress[ptr] = [];
-
-            MethodsByAddress[ptr].Add(gm);
-            ConcreteGenericMethodsByRef[methodRef] = gm;
-#if !DEBUG
-            }
-            catch (Exception e)
-            {
-                throw new("Failed to process concrete generic method: " + methodRef, e);
-            }
-#endif
-        }
     }
 
     /// <summary>
