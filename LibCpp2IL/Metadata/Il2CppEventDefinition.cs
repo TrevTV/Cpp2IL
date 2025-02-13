@@ -74,6 +74,8 @@ public class Il2CppEventDefinition : ReadableClass
         if (IsAtMost(24f))
             customAttributeIndex = reader.ReadInt32();
         token = reader.ReadUInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

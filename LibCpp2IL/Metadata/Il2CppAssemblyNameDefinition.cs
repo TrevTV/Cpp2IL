@@ -164,6 +164,8 @@ public class Il2CppAssemblyNameDefinition : ReadableClass
         build = reader.ReadInt32();
         revision = reader.ReadInt32();
         publicKeyToken = reader.ReadUInt64();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

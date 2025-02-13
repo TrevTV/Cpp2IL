@@ -9,6 +9,8 @@ public class Il2CppStringLiteral : ReadableClass
     {
         length = reader.ReadUInt32();
         dataIndex = reader.ReadInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

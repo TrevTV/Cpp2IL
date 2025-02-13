@@ -11,6 +11,8 @@ public class Il2CppFieldMarshaledSize : ReadableClass
         fieldIndex = reader.ReadInt32();
         typeIndex = reader.ReadInt32();
         size = reader.ReadInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

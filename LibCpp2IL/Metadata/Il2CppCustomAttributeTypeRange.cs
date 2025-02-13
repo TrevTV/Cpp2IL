@@ -17,6 +17,8 @@ public class Il2CppCustomAttributeTypeRange : ReadableClass, IIl2CppTokenProvide
 
         if (IsLessThan(29f))
             count = reader.ReadInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

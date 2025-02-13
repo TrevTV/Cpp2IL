@@ -9,6 +9,8 @@ public class Il2CppMetadataUsageList : ReadableClass
     {
         start = reader.ReadUInt32();
         count = reader.ReadUInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

@@ -9,6 +9,8 @@ public class Il2CppRange : ReadableClass
     {
         start = reader.ReadInt32();
         length = reader.ReadInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

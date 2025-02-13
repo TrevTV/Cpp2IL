@@ -33,6 +33,8 @@ public class Il2CppGenericParameter : ReadableClass
         constraintsCount = reader.ReadInt16();
         genericParameterIndexInOwner = reader.ReadUInt16();
         flags = reader.ReadUInt16();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

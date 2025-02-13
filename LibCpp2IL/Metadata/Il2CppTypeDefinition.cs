@@ -399,6 +399,8 @@ public class Il2CppTypeDefinition : ReadableClass
 
         Bitfield = reader.ReadUInt32();
         Token = reader.ReadUInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

@@ -39,6 +39,8 @@ public class Il2CppGenericContainer : ReadableClass
         genericParameterCount = reader.ReadInt32();
         isGenericMethod = reader.ReadInt32();
         genericParameterStart = reader.ReadInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

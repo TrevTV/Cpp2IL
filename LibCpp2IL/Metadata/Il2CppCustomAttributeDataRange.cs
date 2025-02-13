@@ -12,6 +12,8 @@ public class Il2CppCustomAttributeDataRange : ReadableClass, IIl2CppTokenProvide
     {
         token = reader.ReadUInt32();
         startOffset = reader.ReadUInt32();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

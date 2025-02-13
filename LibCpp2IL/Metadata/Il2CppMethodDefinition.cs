@@ -185,6 +185,8 @@ public class Il2CppMethodDefinition : ReadableClass
         iflags = reader.ReadUInt16();
         slot = reader.ReadUInt16();
         parameterCount = reader.ReadUInt16();
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)

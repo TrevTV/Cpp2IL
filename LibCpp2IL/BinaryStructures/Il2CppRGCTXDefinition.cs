@@ -25,6 +25,8 @@ public class Il2CppRGCTXDefinition : ReadableClass
         public override void Read(ClassReadingBinaryReader reader)
         {
             rgctxDataDummy = reader.ReadInt32();
+
+            base.Read(reader);
         }
         public override void Write(ClassWritingBinaryWriter writer)
         {
@@ -43,6 +45,8 @@ public class Il2CppRGCTXDefinition : ReadableClass
         {
             _typeIndex = reader.ReadInt32();
             _encodedMethodIndex = reader.ReadInt32();
+
+            base.Read(reader);
         }
 
         public override void Write(ClassWritingBinaryWriter writer)
@@ -84,6 +88,8 @@ public class Il2CppRGCTXDefinition : ReadableClass
             }
 
         }
+
+        base.Read(reader);
 
     }
 

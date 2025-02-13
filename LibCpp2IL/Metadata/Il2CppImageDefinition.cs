@@ -50,6 +50,8 @@ public class Il2CppImageDefinition : ReadableClass
             customAttributeStart = reader.ReadInt32();
             customAttributeCount = reader.ReadUInt32();
         }
+
+        base.Read(reader);
     }
 
     public override void Write(ClassWritingBinaryWriter writer)
