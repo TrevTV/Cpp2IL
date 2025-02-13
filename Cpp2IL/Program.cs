@@ -509,22 +509,6 @@ internal class Program
         Cpp2IlApi.Init();
 #pragma warning restore IL2026
 
-        if (options.ListProcessors)
-        {
-            Logger.InfoNewline("Available processors:");
-            foreach (var cpp2IlProcessingLayer in ProcessingLayerRegistry.AllProcessingLayers)
-                Console.WriteLine($"  ID: {cpp2IlProcessingLayer.Id}   Name: {cpp2IlProcessingLayer.Name}");
-            Environment.Exit(0);
-        }
-
-        if (options.ListOutputFormats)
-        {
-            Logger.InfoNewline("Available output formats:");
-            foreach (var cpp2IlOutputFormat in OutputFormatRegistry.AllOutputFormats)
-                Console.WriteLine($"  ID: {cpp2IlOutputFormat.OutputFormatId}   Name: {cpp2IlOutputFormat.OutputFormatName}");
-            Environment.Exit(0);
-        }
-
         if (!options.AreForceOptionsValid)
             throw new SoftException("Invalid force option configuration");
 
@@ -532,74 +516,17 @@ internal class Program
 
         var result = new Cpp2IlRuntimeArgs();
 
-        if (options.ForcedBinaryPath == null)
-        {
-#if !NET472
-            if (options.GamePath != null && options.GamePath.StartsWith('~'))
-                options.GamePath = string.Concat(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), options.GamePath.AsSpan(1));
-#else
-            if (options.GamePath != null && options.GamePath.StartsWith("~"))
-                options.GamePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + options.GamePath[1..];
-#endif
-                
-            ResolvePathsFromCommandLine(options.GamePath, options.ExeName, ref result);
-        }
-        else
-        {
-            Logger.WarnNewline("Using force options, I sure hope you know what you're doing!");
-            result.PathToAssembly = options.ForcedBinaryPath!;
-            result.PathToMetadata = options.ForcedMetadataPath!;
-            result.UnityVersion = UnityVersion.Parse(options.ForcedUnityVersion!);
+        result.PathToAssembly = options.ForcedBinaryPath!;
+        result.PathToMetadata = options.ForcedMetadataPath!;
+        result.UnityVersion = UnityVersion.Parse(options.ForcedUnityVersion!);
 
-            if (result.UnityVersion.Type == UnityVersionType.Alpha && result.UnityVersion.Build == 0)
-                //Map a0 to f1 - we assume the user simply didn't provide the final part of the version number
-                result.UnityVersion = new UnityVersion(result.UnityVersion.Major, result.UnityVersion.Minor, result.UnityVersion.Build, UnityVersionType.Final, 1);
+        if (result.UnityVersion.Type == UnityVersionType.Alpha && result.UnityVersion.Build == 0)
+            //Map a0 to f1 - we assume the user simply didn't provide the final part of the version number
+            result.UnityVersion = new UnityVersion(result.UnityVersion.Major, result.UnityVersion.Minor, result.UnityVersion.Build, UnityVersionType.Final, 1);
 
-            result.Valid = true;
-        }
-
-        result.WasmFrameworkJsFile = options.WasmFrameworkFilePath;
-
-        result.OutputRootDirectory = options.OutputRootDir;
+        result.Valid = true;
 
         result.LowMemoryMode = options.LowMemoryMode;
-
-        // if(string.IsNullOrEmpty(options.OutputFormatId))      // throw new SoftException("No output format specified, so nothing to do!");
-
-        if (!string.IsNullOrEmpty(options.OutputFormatId))
-        {
-            try
-            {
-                result.OutputFormat = OutputFormatRegistry.GetFormat(options.OutputFormatId!);
-                Logger.VerboseNewline($"Selected output format: {result.OutputFormat.OutputFormatName}");
-            }
-            catch (Exception e)
-            {
-                throw new SoftException(e.Message);
-            }
-        }
-
-        try
-        {
-            result.ProcessingLayersToRun = options.ProcessorsToUse.Select(ProcessingLayerRegistry.GetById).ToList();
-            if (result.ProcessingLayersToRun.Count > 0)
-                Logger.VerboseNewline($"Selected processing layers: {string.Join(", ", result.ProcessingLayersToRun.Select(l => l.Name))}");
-            else
-                Logger.VerboseNewline("No processing layers requested");
-        }
-        catch (Exception e)
-        {
-            throw new SoftException(e.Message);
-        }
-
-        try
-        {
-            options.ProcessorConfigOptions.Select(c => c.Split('=')).ToList().ForEach(s => result.ProcessingLayerConfigurationOptions.Add(s[0], s[1]));
-        }
-        catch (IndexOutOfRangeException)
-        {
-            throw new SoftException("Processor config options must be in the format 'key=value'");
-        }
 
         return result;
     }
@@ -658,25 +585,7 @@ internal class Program
 
         var executionStart = DateTime.Now;
 
-        runtimeArgs.OutputFormat?.OnOutputFormatSelected();
-
         GCSettings.LatencyMode = runtimeArgs.LowMemoryMode ? GCLatencyMode.Interactive : GCLatencyMode.SustainedLowLatency;
-
-        if (runtimeArgs.WasmFrameworkJsFile != null)
-            try
-            {
-                var frameworkJs = File.ReadAllText(runtimeArgs.WasmFrameworkJsFile);
-                var remaps = WasmUtils.ExtractAndParseDynCallRemaps(frameworkJs);
-                Logger.InfoNewline($"Parsed {remaps.Count} dynCall remaps from {runtimeArgs.WasmFrameworkJsFile}");
-                WasmFile.RemappedDynCallFunctions = remaps;
-            }
-            catch (Exception e)
-            {
-                WasmFile.RemappedDynCallFunctions = null;
-                Logger.WarnNewline($"Failed to parse dynCall remaps from Wasm Framework Javascript File: {e}. They will not be used, so you probably won't get method bodies!");
-            }
-        else
-            WasmFile.RemappedDynCallFunctions = null;
 
         Cpp2IlApi.InitializeLibCpp2Il(runtimeArgs.PathToAssembly, runtimeArgs.PathToMetadata, runtimeArgs.UnityVersion);
 
