@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using LibCpp2IL.BinaryStructures;
 using LibCpp2IL.Logging;
@@ -9,222 +12,118 @@ namespace LibCpp2IL.Metadata;
 public static class Il2CppMetadataWriter
 {
     private static Il2CppMetadata _metadata;
+    private static ClassWritingBinaryWriter _writer;
 
     public static void WriteTo(Il2CppMetadata m, string path)
     {
         _metadata = m;
+        var mh = m.metadataHeader;
 
         using var fileStream = File.Open(path, FileMode.Create);
         using var writer = new ClassWritingBinaryWriter(fileStream);
 
-        // metadataHeader (includes magic + version)
-        writer.WriteReadableClass(m.metadataHeader);
+        _writer = writer;
 
-        LibLogger.Verbose("\tWriting image definitions...");
-        var start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppImageDefinition>(m.metadataHeader.imagesOffset, m.imageDefinitions);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tReading assembly definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppAssemblyDefinition>(m.metadataHeader.assembliesOffset, m.AssemblyDefinitions);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting type definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppTypeDefinition>(m.metadataHeader.typeDefinitionsOffset, m.typeDefs);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting interface offsets...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppInterfaceOffset>(m.metadataHeader.interfaceOffsetsOffset, m.interfaceOffsets);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting vtable indices...");
-        start = DateTime.Now;
-        writer.WriteClassArrayAtRawAddr<uint>(m.metadataHeader.vtableMethodsOffset, m.VTableMethodIndices);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting method definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppMethodDefinition>(m.metadataHeader.methodsOffset, m.methodDefs);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting method parameter definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppParameterDefinition>(m.metadataHeader.parametersOffset, m.parameterDefs);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting field definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppFieldDefinition>(m.metadataHeader.fieldsOffset, m.fieldDefs);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting default field values...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppFieldDefaultValue>(m.metadataHeader.fieldDefaultValuesOffset, m.fieldDefaultValues);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting field marshaled sizes...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppFieldMarshaledSize>(m.metadataHeader.fieldMarshaledSizesOffset, m.fieldMarshaledSizes);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting default parameter values...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppParameterDefaultValue>(m.metadataHeader.parameterDefaultValuesOffset, m.parameterDefaultValues);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting default field and parameter values...");
-        start = DateTime.Now;
-        writer.WriteClassArrayAtRawAddr<byte>(m.metadataHeader.fieldAndParameterDefaultValueDataOffset, m.fieldAndParameterDefaultValueData);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting property definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppPropertyDefinition>(m.metadataHeader.propertiesOffset, m.propertyDefs);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting interface definitions...");
-        start = DateTime.Now;
-        writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.interfacesOffset, m.interfaceIndices);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting nested type definitions...");
-        start = DateTime.Now;
-        writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.nestedTypesOffset, m.nestedTypeIndices);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting event definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppEventDefinition>(m.metadataHeader.eventsOffset, m.eventDefs);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting generic container definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppGenericContainer>(m.metadataHeader.genericContainersOffset, m.genericContainers);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting generic parameter definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppGenericParameter>(m.metadataHeader.genericParametersOffset, m.genericParameters);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting generic parameter constraint indices...");
-        start = DateTime.Now;
-        writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.genericParameterConstraintsOffset, m.constraintIndices);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting referenced assemblies...");
-        start = DateTime.Now;
-        writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.referencedAssembliesOffset, m.referencedAssemblies);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        //v17+ fields
-        LibLogger.Verbose("\tWriting string definitions...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppStringLiteral>(m.metadataHeader.stringLiteralOffset, m.stringLiterals);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+        WriteMetadataClassArray("image definitions", mh.imagesOffset, ref mh.imagesCount, m.imageDefinitions);
+        WriteMetadataClassArray("assembly definitions", mh.assembliesOffset, ref mh.assembliesCount, m.AssemblyDefinitions);
+        WriteMetadataClassArray("type definitions", mh.typeDefinitionsOffset, ref mh.typeDefinitionsCount, m.typeDefs);
+        WriteMetadataClassArray("interface offsets", mh.interfaceOffsetsOffset, ref mh.interfaceOffsetsCount, m.interfaceOffsets);
+        WriteClassArray("vtable indices", mh.vtableMethodsOffset, ref mh.vtableMethodsCount, m.VTableMethodIndices);
+        WriteMetadataClassArray("method definitions", mh.methodsOffset, ref mh.methodsCount, m.methodDefs);
+        WriteMetadataClassArray("method parameter definitions", mh.parametersOffset, ref mh.parametersCount, m.parameterDefs);
+        WriteMetadataClassArray("field definitions", mh.fieldsOffset, ref mh.fieldsCount, m.fieldDefs);
+        WriteMetadataClassArray("default field values", mh.fieldDefaultValuesOffset, ref mh.fieldDefaultValuesCount, m.fieldDefaultValues);
+        WriteMetadataClassArray("field marshaled sizes", mh.fieldMarshaledSizesOffset, ref mh.fieldMarshaledSizesCount, m.fieldMarshaledSizes);
+        WriteMetadataClassArray("default parameter values", mh.parameterDefaultValuesOffset, ref mh.parameterDefaultValuesCount, m.parameterDefaultValues);
+        WriteClassArray("field and parameter default values", mh.fieldAndParameterDefaultValueDataOffset, ref mh.fieldAndParameterDefaultValueDataCount, m.fieldAndParameterDefaultValueData);
+        WriteMetadataClassArray("property definitions", mh.propertiesOffset, ref mh.propertiesCount, m.propertyDefs);
+        WriteClassArray("interface definitions", mh.interfacesOffset, ref mh.interfacesCount, m.interfaceIndices);
+        WriteClassArray("nested type definitions", mh.nestedTypesOffset, ref mh.nestedTypesCount, m.nestedTypeIndices);
+        WriteMetadataClassArray("event definitions", mh.eventsOffset, ref mh.eventsCount, m.eventDefs);
+        WriteMetadataClassArray("generic container definitions", mh.genericContainersOffset, ref mh.genericContainersCount, m.genericContainers);
+        WriteMetadataClassArray("generic parameter definitions", mh.genericParametersOffset, ref mh.genericParametersCount, m.genericParameters);
+        WriteClassArray("generic parameter constraint indices", mh.genericParameterConstraintsOffset, ref mh.genericParameterConstraintsCount, m.constraintIndices);
+        WriteClassArray("referenced assemblies", mh.referencedAssembliesOffset, ref mh.referencedAssembliesCount, m.referencedAssemblies);
+        WriteMetadataClassArray("string definitions", mh.stringLiteralOffset, ref mh.stringLiteralCount, m.stringLiterals);
 
         if (m.MetadataVersion < 24.2f)
         {
-            LibLogger.Verbose("\tWriting RGCTX data...");
-            start = DateTime.Now;
-
-            writer.WriteMetadataClassArray<Il2CppRGCTXDefinition>(m.metadataHeader.rgctxEntriesOffset, m.RgctxDefinitions!);
-
-            LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+            WriteMetadataClassArray("RGCTX data", mh.rgctxEntriesOffset, ref mh.rgctxEntriesCount, m.RgctxDefinitions!);
         }
 
-        //Removed in v27 (2020.2) and also 24.5 (2019.4.21)
         if (m.MetadataVersion < 27f)
         {
-            LibLogger.Verbose("\tWriting usage data...");
-            start = DateTime.Now;
-            writer.WriteMetadataClassArray<Il2CppMetadataUsageList>(m.metadataHeader.metadataUsageListsOffset, m.metadataUsageLists!);
-            writer.WriteMetadataClassArray<Il2CppMetadataUsagePair>(m.metadataHeader.metadataUsagePairsOffset, m.metadataUsagePairs!);
-
-            LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+            WriteMetadataClassArray("usage data", mh.metadataUsageListsOffset, ref mh.metadataUsageListsCount, m.metadataUsageLists!);
+            WriteMetadataClassArray("usage pairs", mh.metadataUsagePairsOffset, ref mh.metadataUsagePairsCount, m.metadataUsagePairs!);
         }
 
-        LibLogger.Verbose("\tWriting field references...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppFieldRef>(m.metadataHeader.fieldRefsOffset, m.fieldRefs);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting unresolved virtual call parameter types...");
-        start = DateTime.Now;
-        writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.unresolvedVirtualCallParameterTypesOffset, m.unresolvedVirtualCallParameterTypes);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        LibLogger.Verbose("\tWriting unresolved virtual call parameter ranges...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppRange>(m.metadataHeader.unresolvedVirtualCallParameterRangesOffset, m.unresolvedVirtualCallParameterRanges);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
-
-        // TODO: is this an array? it says "size" instead of "count" so im not really sure
-        // it likely wont even matter for this since it's for windows
-        LibLogger.Verbose("\tWriting Windows runtime type names...");
-        start = DateTime.Now;
-        writer.WriteMetadataClassArray<Il2CppWindowsRuntimeTypeNamePair>(m.metadataHeader.windowsRuntimeTypeNamesOffset, m.windowsRuntimeTypeNames);
-        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+        WriteMetadataClassArray("field references", mh.fieldRefsOffset, ref mh.fieldRefsCount, m.fieldRefs);
+        WriteClassArray("unresolved virtual call parameter types", mh.unresolvedVirtualCallParameterTypesOffset, ref mh.unresolvedVirtualCallParameterTypesCount, m.unresolvedVirtualCallParameterTypes);
+        WriteMetadataClassArray("unresolved virtual call parameter ranges", mh.unresolvedVirtualCallParameterRangesOffset, ref mh.unresolvedVirtualCallParameterRangesCount, m.unresolvedVirtualCallParameterRanges);
+        WriteMetadataClassArray("Windows runtime type names", mh.windowsRuntimeTypeNamesOffset, ref mh.windowsRuntimeTypeNamesSize, m.windowsRuntimeTypeNames);
 
         if (m.MetadataVersion >= 27)
         {
-            //LibLogger.Verbose("\tReading Windows runtime strings...");
-            //start = DateTime.Now;
-            //windowsRuntimeTypeNames = ReadMetadataClassArray<Il2CppWindowsRuntimeTypeNamePair>(metadataHeader.windowsRuntimeTypeNamesOffset, metadataHeader.unresolvedVirtualCallParameterRangesCount);
-            //LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+            //WriteMetadataClassArray("Windows runtime strings", mh.windowsRuntimeTypeNamesOffset, ref mh.windowsRuntimeTypeNamesSize, m.windowsRuntimeTypeNames);
         }
 
         if (m.MetadataVersion >= 24)
         {
-            LibLogger.Verbose("\tWriting exported type definitions...");
-            start = DateTime.Now;
-            writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.exportedTypeDefinitionsOffset, m.exportedTypeDefinitions);
-            LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+            WriteClassArray("exported type definitions", mh.exportedTypeDefinitionsOffset, ref mh.exportedTypeDefinitionsCount, m.exportedTypeDefinitions);
         }
 
         //v21+ fields
         if (m.MetadataVersion < 29)
         {
             //Removed in v29
-            LibLogger.Verbose("\tWriting attribute types...");
-            start = DateTime.Now;
-            writer.WriteMetadataClassArray<Il2CppCustomAttributeTypeRange>(m.metadataHeader.attributesInfoOffset, [.. m.attributeTypeRanges!]);
-            writer.WriteClassArrayAtRawAddr<int>(m.metadataHeader.attributeTypesOffset, m.attributeTypes!);
-            LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+            WriteMetadataClassArray("attribute infos", mh.attributesInfoOffset, ref mh.attributesInfoCount, [.. m.attributeTypeRanges!]);
+            WriteClassArray("attribute types", mh.attributeTypesOffset, ref mh.attributeTypesCount, m.attributeTypes!);
         }
         else
         {
-            //Since v29
-            LibLogger.Verbose("\tWriting Attribute data...");
-            start = DateTime.Now;
-
             //Pointer array
-            writer.WriteMetadataClassArrayAtRawAddr<Il2CppCustomAttributeDataRange>(m.metadataHeader.attributeDataRangeOffset, [.. m.AttributeDataRanges!]);
-            LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+            WriteMetadataClassArray("attribute data", mh.attributeDataRangeOffset, ref mh.attributeDataRangeCount, [.. m.AttributeDataRanges!]);
         }
 
-        // string literals
         for (uint i = 0; i < m.stringLiterals.Length; i++)
         {
             var str = m.GetStringLiteralFromIndex(i);
             var addr = m.metadataHeader.stringLiteralDataOffset + m.stringLiterals[i].dataIndex;
-            writer.WriteStringWithNullTerminatorAtRawAddress(addr, str);
+            writer.WriteStringWithNullTerminator(addr, str);
         }
 
-        // TODO: this section is writing EFs in place of seemingly important data for an unknown reason, doing a direct byte copy fixes it for now
+        writer.WriteClassArray<byte>(m.metadataHeader.stringOffset, GetStringDataBytes(m));
 
-        // strings
-        /*for (var i = 0; i < m.metadataHeader.stringCount; i++)
-        {
-            var str = m.GetStringFromIndex(i);
-            var addr = m.metadataHeader.stringOffset + i;
-            writer.WriteStringWithNullTerminatorAtRawAddress(addr, str);
-        }*/
+        // metadataHeader (includes magic + version)
+        writer.WriteReadableClassAtAddr(0, mh);
 
-        writer.WriteClassArrayAtRawAddr<byte>(m.metadataHeader.stringOffset, GetStringDataBytes(m));
+        // TODO: determine offsets if modified
+        // TODO: make stringLiterals and strings modifiable
+    }
+
+    private static void WriteMetadataClassArray<T>(string name, int offset, ref int count, T[] data) where T : ReadableClass
+    {
+        if (data.Length == 0)
+            return;
+
+        LibLogger.Verbose($"\tWriting {name}...");
+        var start = DateTime.Now;
+        _writer.WriteMetadataClassArray(offset, data);
+        count = data.Length * data.First().Size;
+        Console.WriteLine($"{name} : {data.First().Size}");
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
+    }
+
+    private static void WriteClassArray<T>(string name, int offset, ref int count, T[] data) where T : struct
+    {
+        if (data.Length == 0)
+            return;
+
+        LibLogger.Verbose($"\tWriting {name}...");
+        var start = DateTime.Now;
+        _writer.WriteClassArray(offset, data);
+        count = data.Length * Marshal.SizeOf<T>();
+        LibLogger.VerboseNewline($"OK ({(DateTime.Now - start).TotalMilliseconds} ms)");
     }
 
     private static byte[] GetStringDataBytes(Il2CppMetadata m)
@@ -271,13 +170,13 @@ public class ClassWritingBinaryWriter : BinaryWriter
         readable.Write(this);
     }
 
-    public void WriteStringWithNullTerminator(string value)
+    public void WriteReadableClassAtAddr(int offset, ReadableClass readable)
     {
-        Write(Encoding.UTF8.GetBytes(value));
-        Write((byte)0);
+        Seek(offset, SeekOrigin.Begin);
+        readable.Write(this);
     }
 
-    public void WriteStringWithNullTerminatorAtRawAddress(int offset, string value)
+    public void WriteStringWithNullTerminator(int offset, string value)
     {
         Seek(offset, SeekOrigin.Begin);
         Write(Encoding.UTF8.GetBytes(value));
@@ -305,26 +204,7 @@ public class ClassWritingBinaryWriter : BinaryWriter
         }
     }
 
-    public void WriteMetadataClassArrayAtRawAddr<T>(int offset, T[] objects) where T : ReadableClass
-    {
-        Seek(offset, SeekOrigin.Begin);
-        foreach (var obj in objects)
-        {
-            WriteReadableClass(obj);
-        }
-    }
-
     public void WriteClassArray<T>(int offset, T[] objects) where T : new()
-    {
-        Seek(offset, SeekOrigin.Begin);
-
-        foreach (var obj in objects)
-        {
-            WritePrimitive(obj!);
-        }
-    }
-
-    public void WriteClassArrayAtRawAddr<T>(int offset, T[] objects) where T : new()
     {
         Seek(offset, SeekOrigin.Begin);
 
