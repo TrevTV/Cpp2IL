@@ -691,8 +691,145 @@ internal class Program
 
     private static void WeirdStripStuff()
     {
-        var metadata = LibCpp2IlMain.TheMetadata!;
+        var m = LibCpp2IlMain.TheMetadata!;
 
-        Il2CppMetadataWriter.WriteTo(metadata, "E:\\global-metadata-mod.dat");
+        // hard coded injections for Muse Dash currently, will be transitiond to dynamic later
+        var imgIndex = InjectAssemblyImage(m, "UnityEngine.UnityAnalyticsModule");
+        var asiType = InjectType(m, imgIndex, "AnalyticsSessionInfo", "UnityEngine.Analytics");
+        var assType = InjectType(m, imgIndex, "AnalyticsSessionState", "UnityEngine.Analytics");
+        var ceType = InjectType(m, imgIndex, "ContinuousEvent", "UnityEngine.Analytics");
+        var rcshType = InjectType(m, imgIndex, "RemoteConfigSettingsHelper", "UnityEngine");
+        var tagType = InjectType(m, imgIndex, "Tag", "UnityEngine", rcshType);
+
+        Il2CppMetadataWriter.WriteTo(m, "E:\\global-metadata-mod.dat");
+    }
+
+    private static Dictionary<string, int> _injectedAssemblies = [];
+    private static Dictionary<string, int> _injectedImages = [];
+    private static Dictionary<string, int> _injectedNamespaces = [];
+    private static Dictionary<string, int> _injectedTypes = [];
+
+    private static int InjectAssemblyImage(Il2CppMetadata m, string assembly)
+    {
+        var potentialImg = m.imageDefinitions.FirstOrDefault(a => a.Name == assembly);
+        if (potentialImg != null)
+            return Array.IndexOf(m.imageDefinitions, potentialImg);
+
+        var asmNameIndex = m.InjectNewString(assembly);
+        var imgNameIndex = m.InjectNewString(assembly + ".dll");
+
+        var asmDef = m.AssemblyDefinitions.First(a => a.AssemblyName.Name.StartsWith("UnityEngine.Core")).Clone<Il2CppAssemblyDefinition>();
+        var imgDef = m.imageDefinitions.First(a => a.Name?.StartsWith("UnityEngine.Core") ?? false).Clone<Il2CppImageDefinition>();
+
+        var asmIndex = m.AssemblyDefinitions.Length;
+        var imgIndex = m.imageDefinitions.Length;
+
+        asmDef.ImageIndex = imgIndex;
+        asmDef.AssemblyName = asmDef.AssemblyName.Clone<Il2CppAssemblyNameDefinition>();
+        asmDef.AssemblyName.nameIndex = asmNameIndex;
+
+        imgDef.assemblyIndex = asmIndex;
+        imgDef.nameIndex = imgNameIndex;
+        imgDef.firstTypeIndex = m.typeDefs.Length;
+        imgDef.typeCount = 0; // bumped by InjectType
+
+        var imageList = m.imageDefinitions.ToList();
+        imageList.Add(imgDef);
+        m.imageDefinitions = [.. imageList];
+
+        var asmList = m.AssemblyDefinitions.ToList();
+        asmList.Add(asmDef);
+        m.AssemblyDefinitions = [.. asmList];
+
+        _injectedAssemblies.Add(assembly, asmIndex);
+        _injectedImages.Add(assembly + ".dll", imgIndex);
+
+        InjectType(m, imgIndex, "<Module>", null);
+
+        return imgIndex;
+    }
+
+    private static int InjectType(Il2CppMetadata m, int imageIndex, string typeName, string? namespaceName = null, int declaringTypeIndex = -1)
+    {
+        var potentialType = m.typeDefs.FirstOrDefault(a => a.Namespace == namespaceName && a.Name == typeName);
+        if (potentialType != null)
+            return Array.IndexOf(m.typeDefs, potentialType);
+
+        var typeDef = m.imageDefinitions.First(a => a.Name?.StartsWith("UnityEngine.Core") ?? false).Types!.First(a => a.Name == "<Module>").Clone<Il2CppTypeDefinition>();
+
+        // <Module> has no namespace so global works as default
+        var namespaceIndex = typeDef.NamespaceIndex;
+
+        // nested types always use global namespace
+        if (declaringTypeIndex == -1 && !string.IsNullOrWhiteSpace(namespaceName) && !_injectedNamespaces.TryGetValue(namespaceName!, out namespaceIndex))
+            _injectedNamespaces.Add(namespaceName!, namespaceIndex = m.InjectNewString(namespaceName!));
+
+        var typeNameIndex = m.InjectNewString(typeName);
+        typeDef.NameIndex = typeNameIndex;
+        typeDef.NamespaceIndex = namespaceIndex;
+
+        typeDef.DeclaringTypeIndex = declaringTypeIndex;
+        typeDef.ParentIndex = -1;
+        typeDef.ElementTypeIndex = -1;
+
+        typeDef.RgctxStartIndex = 0;
+        typeDef.RgctxCount = 0;
+
+        typeDef.GenericContainerIndex = -1;
+
+        if (declaringTypeIndex == -1)
+            typeDef.Flags = (int)TypeAttributes.Public;
+        else
+            typeDef.Flags = (int)TypeAttributes.NestedPublic;
+
+        typeDef.FirstFieldIdx = -1;
+        typeDef.FirstMethodIdx = -1;
+        typeDef.FirstEventId = -1;
+        typeDef.FirstPropertyId = -1;
+
+        typeDef.NestedTypesStart = 0;
+        typeDef.InterfacesStart = 0;
+        typeDef.VtableStart = 0;
+        typeDef.InterfaceOffsetsStart = 0;
+
+        typeDef.MethodCount = 0;
+        typeDef.PropertyCount = 0;
+        typeDef.NestedTypeCount = 0;
+        typeDef.FieldCount = 0;
+        typeDef.EventCount = 0;
+        typeDef.VtableCount = 0;
+        typeDef.InterfacesCount = 0;
+        typeDef.InterfaceOffsetsCount = 0;
+
+        typeDef.Bitfield = 0;
+
+        var index = m.typeDefs.Length;
+
+        if (declaringTypeIndex != -1)
+        {
+            var indice = m.nestedTypeIndices.Length;
+
+            var indiceList = m.nestedTypeIndices.ToList();
+            indiceList.Add(index);
+            m.nestedTypeIndices = [.. indiceList];
+
+            var declaringType = m.typeDefs[declaringTypeIndex];
+            declaringType.NestedTypeCount++;
+            if (declaringType.NestedTypesStart == 0)
+                declaringType.NestedTypesStart = indice;
+            else
+                throw new NotImplementedException("adding multiple nested types isnt supported");
+        }
+
+        var typeList = m.typeDefs.ToList();
+        typeList.Add(typeDef);
+        m.typeDefs = [.. typeList];
+
+        _injectedTypes.Add(namespaceName + "." + typeName, index);
+
+        var img = m.imageDefinitions[imageIndex];
+        img.typeCount++;
+
+        return index;
     }
 }

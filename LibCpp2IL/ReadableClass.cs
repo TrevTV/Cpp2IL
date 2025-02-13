@@ -9,6 +9,8 @@ public abstract class ReadableClass
     internal float MetadataVersion { get; set; }
     internal int Size { get; set; }
 
+    public T Clone<T>() => (T)MemberwiseClone();
+
     protected bool IsAtLeast(float vers) => MetadataVersion >= vers;
     protected bool IsLessThan(float vers) => MetadataVersion < vers;
     protected bool IsAtMost(float vers) => MetadataVersion <= vers;
