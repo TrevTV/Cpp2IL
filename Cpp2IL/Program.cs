@@ -855,16 +855,8 @@ internal class Program
         if (!_injectedTypes.ContainsValue(typeIndex))
             throw new NotImplementedException("injecting methods on a non-injected type is not supported");
 
-        var methodDef = m.imageDefinitions.First(a => a.Name?.StartsWith("UnityEngine.Core") ?? false)
-            .Types!.SelectMany(a => a.Methods ?? [])
-            .First(m => m.parameterCount == 0 &&
-            m.ReturnType?.baseType != null &&
-            m.ReturnType.baseType.Name == "Void" &&
-            m.ReturnType.baseType.Namespace == "System" &&
-            m.IsStatic &&
-            !m.MethodImplAttributes.HasFlag(MethodImplAttributes.InternalCall) &&
-            !m.Name!.Contains("ctor") &&
-            !m.IsUnmanagedCallersOnly)
+        var methodDef = m.typeDefs.First(a => a.Namespace == "System" && a.Name == "Object")
+            .Methods!.First(a => a.Name == ".ctor")
             .Clone<Il2CppMethodDefinition>();
 
         Console.WriteLine($"using {methodDef.ToString()} as base");
@@ -881,7 +873,6 @@ internal class Program
         methodDef.delegateWrapperIndex = -1;
         methodDef.rgctxStartIndex = -1;
         methodDef.rgctxCount = -1;
-        //methodDef.slot = 0;
         methodDef.token = 0;
 
         methodDef.flags = (ushort)(MethodAttributes.Public | MethodAttributes.Static);
