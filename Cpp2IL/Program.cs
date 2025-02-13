@@ -698,8 +698,21 @@ internal class Program
         var asiType = InjectType(m, imgIndex, "AnalyticsSessionInfo", "UnityEngine.Analytics");
         var assType = InjectType(m, imgIndex, "AnalyticsSessionState", "UnityEngine.Analytics");
         var ceType = InjectType(m, imgIndex, "ContinuousEvent", "UnityEngine.Analytics");
+        var rcsType = InjectType(m, imgIndex, "RemoteConfigSettings", "UnityEngine");
+        var rsType = InjectType(m, imgIndex, "RemoteSettings", "UnityEngine");
         var rcshType = InjectType(m, imgIndex, "RemoteConfigSettingsHelper", "UnityEngine");
         var tagType = InjectType(m, imgIndex, "Tag", "UnityEngine", rcshType);
+
+        InjectMethod(m, asiType, "CallIdentityTokenChanged");
+        InjectMethod(m, asiType, "CallSessionStateChanged");
+        InjectMethod(m, rcsType, "RemoteConfigSettingsUpdated");
+        InjectMethod(m, rsType, "RemoteSettingsBeforeFetchFromServer");
+        InjectMethod(m, rsType, "RemoteSettingsUpdateCompleted");
+        InjectMethod(m, rsType, "RemoteSettingsUpdated");
+
+        var aiImgIndex = InjectAssemblyImage(m, "UnityEngine.AIModule");
+        var nvType = InjectType(m, aiImgIndex, "NavMesh", "UnityEngine.AI");
+        InjectMethod(m, nvType, "Internal_CallOnNavMeshPreUpdate");
 
         Il2CppMetadataWriter.WriteTo(m, "E:\\global-metadata-mod.dat");
     }
@@ -708,6 +721,7 @@ internal class Program
     private static Dictionary<string, int> _injectedImages = [];
     private static Dictionary<string, int> _injectedNamespaces = [];
     private static Dictionary<string, int> _injectedTypes = [];
+    private static Dictionary<string, int> _injectedMethods = [];
 
     private static int InjectAssemblyImage(Il2CppMetadata m, string assembly)
     {
@@ -825,10 +839,65 @@ internal class Program
         typeList.Add(typeDef);
         m.typeDefs = [.. typeList];
 
-        _injectedTypes.Add(namespaceName + "." + typeName, index);
 
         var img = m.imageDefinitions[imageIndex];
         img.typeCount++;
+
+        _injectedTypes.Add("[" + img.Name + "]" + namespaceName + "." + typeName, index);
+
+        return index;
+    }
+
+    private static int InjectMethod(Il2CppMetadata m, int typeIndex, string methodName)
+    {
+        // TODO: empty body injection (if possible?)
+        // TODO: injection on an existing type
+        if (!_injectedTypes.ContainsValue(typeIndex))
+            throw new NotImplementedException("injecting methods on a non-injected type is not supported");
+
+        var methodDef = m.imageDefinitions.First(a => a.Name?.StartsWith("UnityEngine.Core") ?? false)
+            .Types!.SelectMany(a => a.Methods ?? [])
+            .First(m => m.parameterCount == 0 &&
+            m.ReturnType?.baseType != null &&
+            m.ReturnType.baseType.Name == "Void" &&
+            m.ReturnType.baseType.Namespace == "System" &&
+            m.IsStatic &&
+            !m.MethodImplAttributes.HasFlag(MethodImplAttributes.InternalCall) &&
+            !m.Name!.Contains("ctor") &&
+            !m.IsUnmanagedCallersOnly)
+            .Clone<Il2CppMethodDefinition>();
+
+        Console.WriteLine($"using {methodDef.ToString()} as base");
+
+        var methodNameIndex = m.InjectNewString(methodName);
+        methodDef.nameIndex = methodNameIndex;
+        methodDef.declaringTypeIdx = typeIndex;
+
+        methodDef.genericContainerIndex = -1;
+        methodDef.customAttributeIndex = 0;
+
+        methodDef.methodIndex = -1;
+        methodDef.invokerIndex = -1;
+        methodDef.delegateWrapperIndex = -1;
+        methodDef.rgctxStartIndex = -1;
+        methodDef.rgctxCount = -1;
+        //methodDef.slot = 0;
+        methodDef.token = 0;
+
+        methodDef.flags = (ushort)(MethodAttributes.Public | MethodAttributes.Static);
+
+        var index = m.methodDefs.Length;
+
+        var methodList = m.methodDefs.ToList();
+        methodList.Add(methodDef);
+        m.methodDefs = [.. methodList];
+
+        var typeDef = m.typeDefs[typeIndex];
+        typeDef.MethodCount++;
+        if (typeDef.FirstMethodIdx == -1)
+            typeDef.FirstMethodIdx = index;
+
+        _injectedMethods.Add("[" + typeDef.DeclaringAssembly!.Name + "]" + typeDef.Namespace + "." + typeDef.Name + "::" + methodName, index);
 
         return index;
     }
