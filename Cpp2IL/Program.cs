@@ -768,8 +768,6 @@ internal class Program
             .Methods!.First(a => a.Name == ".ctor")
             .Clone<Il2CppMethodDefinition>();
 
-        Console.WriteLine($"using {methodDef.ToString()} as base");
-
         var methodNameIndex = m.InjectNewString(methodName);
         methodDef.nameIndex = methodNameIndex;
         methodDef.declaringTypeIdx = typeIndex;
