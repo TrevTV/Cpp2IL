@@ -13,6 +13,7 @@ public class Cpp2IlRuntimeArgs
     public UnityVersion UnityVersion;
     public string PathToAssembly = null!;
     public string PathToMetadata = null!;
+    public string UnityManagedPath = null!;
 
     public bool LowMemoryMode;
 }

@@ -19,11 +19,14 @@ public class CommandLineArgs
     [Option("unity-version", HelpText = "Override the unity version detection. Don't use unless you know what you're doing, and use in conjunction with the other force options.")]
     public string? ForcedUnityVersion { get; set; }
 
+    [Option("unity-managed-path", HelpText = "Override the unity version detection. Don't use unless you know what you're doing, and use in conjunction with the other force options.")]
+    public string? UnityManagedPath { get; set; }
+
     [Option("verbose", HelpText = "Enable Verbose Logging.")]
     public bool Verbose { get; set; }
 
     [Option("low-memory-mode", HelpText = "Enable Low Memory Mode. This will attempt to reduce memory usage at the cost of performance.")]
-    public bool LowMemoryMode { get; set; }
+    public bool LowMemoryMode { get; set; } = true;
 
     internal bool AreForceOptionsValid
     {

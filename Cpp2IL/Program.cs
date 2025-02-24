@@ -19,10 +19,8 @@ using AssetRipper.Primitives;
 using Cpp2IL.Core.Extensions;
 using LibCpp2IL;
 using LibCpp2IL.Metadata;
-
-#if NET472
-using LibCpp2IL;
-#endif
+using AsmResolver.DotNet;
+using System.Text;
 
 namespace Cpp2IL;
 
@@ -518,6 +516,7 @@ internal class Program
 
         result.PathToAssembly = options.ForcedBinaryPath!;
         result.PathToMetadata = options.ForcedMetadataPath!;
+        result.UnityManagedPath = options.UnityManagedPath!;
         result.UnityVersion = UnityVersion.Parse(options.ForcedUnityVersion!);
 
         if (result.UnityVersion.Type == UnityVersionType.Alpha && result.UnityVersion.Build == 0)
@@ -592,38 +591,80 @@ internal class Program
         if (runtimeArgs.LowMemoryMode)
             GC.Collect();
 
-        WeirdStripStuff();
+        WeirdStripStuff(runtimeArgs.UnityManagedPath);
 
         Logger.InfoNewline($"Done. Total execution time: {(DateTime.Now - executionStart).TotalMilliseconds}ms");
         return 0;
     }
 
-    private static void WeirdStripStuff()
+    private static void WeirdStripStuff(string managedPath)
     {
         var m = LibCpp2IlMain.TheMetadata!;
 
-        // hard coded injections for Muse Dash currently, will be transitiond to dynamic later
-        var imgIndex = InjectAssemblyImage(m, "UnityEngine.UnityAnalyticsModule");
-        var asiType = InjectType(m, imgIndex, "AnalyticsSessionInfo", "UnityEngine.Analytics");
-        var assType = InjectType(m, imgIndex, "AnalyticsSessionState", "UnityEngine.Analytics");
-        var ceType = InjectType(m, imgIndex, "ContinuousEvent", "UnityEngine.Analytics");
-        var rcsType = InjectType(m, imgIndex, "RemoteConfigSettings", "UnityEngine");
-        var rsType = InjectType(m, imgIndex, "RemoteSettings", "UnityEngine");
-        var rcshType = InjectType(m, imgIndex, "RemoteConfigSettingsHelper", "UnityEngine");
-        var tagType = InjectType(m, imgIndex, "Tag", "UnityEngine", rcshType);
+        if (!Directory.Exists(managedPath))
+            throw new Exception("No managed reference provided, unable to check metadata.");
 
-        InjectMethod(m, asiType, "CallIdentityTokenChanged");
-        InjectMethod(m, asiType, "CallSessionStateChanged");
-        InjectMethod(m, rcsType, "RemoteConfigSettingsUpdated");
-        InjectMethod(m, rsType, "RemoteSettingsBeforeFetchFromServer");
-        InjectMethod(m, rsType, "RemoteSettingsUpdateCompleted");
-        InjectMethod(m, rsType, "RemoteSettingsUpdated");
-
-        var aiImgIndex = InjectAssemblyImage(m, "UnityEngine.AIModule");
-        var nvType = InjectType(m, aiImgIndex, "NavMesh", "UnityEngine.AI");
-        InjectMethod(m, nvType, "Internal_CallOnNavMeshPreUpdate");
+        // TODO: automated injection causes crashes
+        //       i assume a partial cause is injecting more than needed, though im not sure how to determine the actually needed
+        foreach (var asmPath in Directory.GetFiles(managedPath, "UnityEngine*.dll"))
+        {
+            var assembly = AssemblyDefinition.FromFile(asmPath);
+            foreach (var module in assembly.Modules)
+            {
+                foreach (var type in module.GetAllTypes())
+                {
+                    CheckIfInjectType(m, type);
+                    CheckIfInjectTypeMethods(m, type);
+                }
+            }
+        }
 
         Il2CppMetadataWriter.WriteTo(m, "E:\\global-metadata-mod.dat");
+    }
+
+    private static int CheckIfInjectType(Il2CppMetadata m, TypeDefinition type, bool bypassAttributeCheck = false)
+    {
+        if (!bypassAttributeCheck && !type.HasCustomAttribute("UnityEngine.Scripting", "RequiredByNativeCodeAttribute"))
+            return -1;
+
+        var potentialType = m.typeDefs.FirstOrDefault(il2Type => il2Type.Namespace == type.Namespace && il2Type.Name == type.Name);
+        if (potentialType != null)
+            return Array.IndexOf(m.typeDefs, potentialType);
+
+        Console.WriteLine("Injecting type " + type.FullName);
+        var asm = InjectAssemblyImage(m, type.Module!.Assembly!.Name!);
+
+        var declaringTypeIndex = -1;
+        if (type.DeclaringType != null)
+        {
+            if (type.DeclaringType.DeclaringType != null)
+                throw new NotImplementedException("encountered multi-nested type");
+
+            declaringTypeIndex = InjectType(m, asm, type.DeclaringType.Name!, type.DeclaringType.Namespace);
+        }
+
+        return InjectType(m, asm, type.Name!, type.Namespace, declaringTypeIndex);
+    }
+
+    private static void CheckIfInjectTypeMethods(Il2CppMetadata m, TypeDefinition type)
+    {
+        foreach (var method in type.Methods)
+        {
+            if (!method.HasCustomAttribute("UnityEngine.Scripting", "RequiredByNativeCodeAttribute") || method.IsConstructor)
+                continue;
+
+            var potentialMethod = m.methodDefs.FirstOrDefault(il2Type => il2Type.DeclaringType?.Name == type.Namespace && il2Type.Name == type.Name);
+            if (potentialMethod != null)
+                continue;
+
+            var typeIndex = CheckIfInjectType(m, type, true);
+            if (typeIndex == -1)
+                continue;
+
+            Console.WriteLine("Injecting method " + method.FullName);
+
+            InjectMethod(m, typeIndex, method.Name!);
+        }
     }
 
     private static Dictionary<string, int> _injectedAssemblies = [];
@@ -632,11 +673,16 @@ internal class Program
     private static Dictionary<string, int> _injectedTypes = [];
     private static Dictionary<string, int> _injectedMethods = [];
 
+    private static List<int> _methodRefactoredTypes = [];
+    //private static List<int> _nestingRefactoredTypes = [];
+
     private static int InjectAssemblyImage(Il2CppMetadata m, string assembly)
     {
-        var potentialImg = m.imageDefinitions.FirstOrDefault(a => a.Name == assembly);
-        if (potentialImg != null)
-            return Array.IndexOf(m.imageDefinitions, potentialImg);
+        var potentialAsm = m.AssemblyDefinitions.FirstOrDefault(a => a.AssemblyName.Name == assembly);
+        if (potentialAsm != null)
+            return potentialAsm.ImageIndex;
+        if (_injectedAssemblies.TryGetValue(assembly, out var existingIndex))
+            return existingIndex;
 
         var asmNameIndex = m.InjectNewString(assembly);
         var imgNameIndex = m.InjectNewString(assembly + ".dll");
@@ -674,9 +720,35 @@ internal class Program
 
     private static int InjectType(Il2CppMetadata m, int imageIndex, string typeName, string? namespaceName = null, int declaringTypeIndex = -1)
     {
+        var img = m.imageDefinitions[imageIndex];
+
+        if (string.IsNullOrWhiteSpace(namespaceName))
+            namespaceName = null;
+
+        StringBuilder keyBuilder = new();
+        keyBuilder.Append('[');
+        keyBuilder.Append(img.nameIndex);
+        keyBuilder.Append(']');
+        if (namespaceName != null)
+        {
+            keyBuilder.Append(namespaceName);
+            keyBuilder.Append('.');
+        }
+        if (declaringTypeIndex != -1)
+        {
+            var declaringType = m.typeDefs[declaringTypeIndex];
+            keyBuilder.Append(declaringType.Name);
+            keyBuilder.Append('/');
+        }
+        keyBuilder.Append(typeName);
+        var key = keyBuilder.ToString();
+
         var potentialType = m.typeDefs.FirstOrDefault(a => a.Namespace == namespaceName && a.Name == typeName);
         if (potentialType != null)
             return Array.IndexOf(m.typeDefs, potentialType);
+
+        if (_injectedTypes.TryGetValue(key, out var existingIndex))
+            return existingIndex;
 
         var typeDef = m.imageDefinitions.First(a => a.Name?.StartsWith("UnityEngine.Core") ?? false).Types!.First(a => a.Name == "<Module>").Clone<Il2CppTypeDefinition>();
 
@@ -730,39 +802,82 @@ internal class Program
 
         if (declaringTypeIndex != -1)
         {
+            var declaringType = m.typeDefs[declaringTypeIndex];
+
+            // return if we're adding a nested type to a non-injected type
+            // TODO: i don't know if this should be handled this way.
+            if (declaringType.NestedTypesStart > 0 && !_injectedTypes.ContainsValue(declaringTypeIndex))
+            {
+                Logger.WarnNewline("Skipping; we're adding a nested type to a non-injected type with existing nested types");
+                return -1;
+            }
+
+            // TODO: fix nest mid-list injection
+            // check if
+            // a. if we already did this
+            // b. there are any existing nested types
+            // c. the declaringtype is ours
+            // d. all the nested types are ours
+            // if it doesn't match, we need to work around it.
+            /*if (!_nestingRefactoredTypes.Contains(declaringTypeIndex) &&
+                declaringType.NestedTypesStart != 0 &&
+                !_injectedTypes.ContainsValue(declaringTypeIndex) &&
+                !_injectedTypes.ContainsValue(m.nestedTypeIndices[declaringType.NestedTypesStart]))
+            {
+                var newIndiceStart = m.nestedTypeIndices.Length;
+
+                var refacIndiceList = m.nestedTypeIndices.ToList();
+                refacIndiceList.AddRange(m.nestedTypeIndices.Skip(declaringType.NestedTypesStart).Take(declaringType.NestedTypeCount));
+                m.nestedTypeIndices = [.. refacIndiceList];
+
+                declaringType.NestedTypesStart = newIndiceStart;
+
+                _nestingRefactoredTypes.Add(declaringTypeIndex);
+            }
+*/
             var indice = m.nestedTypeIndices.Length;
 
             var indiceList = m.nestedTypeIndices.ToList();
             indiceList.Add(index);
             m.nestedTypeIndices = [.. indiceList];
 
-            var declaringType = m.typeDefs[declaringTypeIndex];
             declaringType.NestedTypeCount++;
             if (declaringType.NestedTypesStart == 0)
                 declaringType.NestedTypesStart = indice;
-            else
-                throw new NotImplementedException("adding multiple nested types isnt supported");
         }
 
         var typeList = m.typeDefs.ToList();
         typeList.Add(typeDef);
         m.typeDefs = [.. typeList];
 
-
-        var img = m.imageDefinitions[imageIndex];
         img.typeCount++;
 
-        _injectedTypes.Add("[" + img.Name + "]" + namespaceName + "." + typeName, index);
+        _injectedTypes.Add(key, index);
 
         return index;
     }
 
     private static int InjectMethod(Il2CppMetadata m, int typeIndex, string methodName)
     {
-        // TODO: empty body injection (if possible?)
-        // TODO: injection on an existing type
-        if (!_injectedTypes.ContainsValue(typeIndex))
-            throw new NotImplementedException("injecting methods on a non-injected type is not supported");
+        var typeDef = m.typeDefs[typeIndex];
+
+        // return if we're not in an injected type or the given type doesn't only contain injected methods
+        if (!_injectedTypes.ContainsValue(typeIndex) && !_injectedMethods.ContainsValue(typeDef.FirstMethodIdx))
+            return -1;
+
+        // TODO: runtime empty body injection (if possible)
+        // TODO: fix method mid-list injection
+        /*if (!_methodRefactoredTypes.Contains(typeIndex) && !_injectedTypes.ContainsValue(typeIndex))
+        {
+            // this is how i'm injecting new methods without having to deal with inserting them in the middle of the list
+            var newFirstMethodIdx = m.methodDefs.Length;
+            var preMethodList = m.methodDefs.ToList();
+            preMethodList.AddRange(typeDef.Methods!);
+            m.methodDefs = [.. preMethodList];
+            typeDef.FirstMethodIdx = newFirstMethodIdx;
+
+            _methodRefactoredTypes.Add(typeIndex);
+        }*/
 
         var methodDef = m.typeDefs.First(a => a.Namespace == "System" && a.Name == "Object")
             .Methods!.First(a => a.Name == ".ctor")
@@ -790,12 +905,29 @@ internal class Program
         methodList.Add(methodDef);
         m.methodDefs = [.. methodList];
 
-        var typeDef = m.typeDefs[typeIndex];
         typeDef.MethodCount++;
         if (typeDef.FirstMethodIdx == -1)
             typeDef.FirstMethodIdx = index;
 
-        _injectedMethods.Add("[" + typeDef.DeclaringAssembly!.Name + "]" + typeDef.Namespace + "." + typeDef.Name + "::" + methodName, index);
+        StringBuilder keyBuilder = new();
+        keyBuilder.Append('[');
+        keyBuilder.Append(typeDef.DeclaringAssembly!.Name);
+        keyBuilder.Append(']');
+        if (typeDef.Namespace != null)
+        {
+            keyBuilder.Append(typeDef.Namespace);
+            keyBuilder.Append('.');
+        }
+        if (typeDef.DeclaringType != null)
+        {
+            keyBuilder.Append(typeDef.DeclaringType.Name);
+            keyBuilder.Append('/');
+        }
+        keyBuilder.Append(typeDef.Name);
+        keyBuilder.Append("::");
+        keyBuilder.Append(methodName);
+
+        _injectedMethods.Add(keyBuilder.ToString(), index);
 
         return index;
     }
